@@ -1,85 +1,102 @@
-import { useState, useCallback } from 'react';
+import { useState } from 'react';
 import { Pressable, View, Text } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { useReader, ReaderProvider } from '@epubjs-react-native/core';
 
 import { getBookById } from '@/services/db/books';
 import { EpubReader, type EpubTocItem } from '@/features/reader/EpubReader';
+import { PdfReader } from '@/features/reader/PdfReader';
 import { ReaderControls } from '@/features/reader/ReaderControls';
 import { TableOfContents } from '@/features/reader/TableOfContents';
 import { useSettingsStore } from '@/stores/settingsStore';
 
 // ---------------------------------------------------------------------------
-// Inner reader — needs useReader() so must be inside ReaderProvider
+// EPUB inner — needs useReader() so must live inside ReaderProvider
 // ---------------------------------------------------------------------------
 
-function ReaderContent({ bookId }: { bookId: string }) {
+function EpubContent({
+  bookId,
+  filePath,
+  title,
+}: {
+  bookId: string;
+  filePath: string;
+  title: string;
+}) {
   const { goToLocation } = useReader();
   const settings = useSettingsStore((s) => s.settings);
-  const book = getBookById(bookId);
 
   const [controlsVisible, setControlsVisible] = useState(false);
   const [tocVisible, setTocVisible] = useState(false);
   const [toc, setToc] = useState<EpubTocItem[]>([]);
   const [progress, setProgress] = useState(0);
 
-  const handleTap = useCallback(() => setControlsVisible((v) => !v), []);
-
-  if (!book) {
-    return (
-      <View className="flex-1 items-center justify-center bg-black">
-        <Text className="text-white">Book not found</Text>
-      </View>
-    );
-  }
-
-  if (book.format !== 'epub') {
-    // PDF handled separately in Phase 6 — placeholder for now
-    return (
-      <View className="flex-1 items-center justify-center bg-black">
-        <Text className="text-white">PDF reader — Phase 6</Text>
-      </View>
-    );
-  }
-
   return (
     <View className="flex-1 bg-white">
-      {/* Tap zone wrapper */}
-      <Pressable
-        onPress={handleTap}
-        className="flex-1"
-        accessibilityLabel="Tap to show/hide controls"
-      >
-        <EpubReader
-          bookId={bookId}
-          fileUri={book.filePath}
-          settings={settings}
-          onTocReady={setToc}
-        />
+      <Pressable onPress={() => setControlsVisible((v) => !v)} className="flex-1">
+        <EpubReader bookId={bookId} fileUri={filePath} settings={settings} onTocReady={setToc} />
       </Pressable>
 
-      {/* Overlay controls (tap-to-show) */}
       <ReaderControls
-        title={book.title}
+        title={title}
         progress={progress}
-        onProgressChange={(val) => {
-          // epubjs doesn't support direct % navigation — navigate to CFI via percentage
-          // For now store and display; deep integration in polish phase
-          setProgress(val);
-        }}
+        onProgressChange={setProgress}
         onTocPress={() => setTocVisible(true)}
         onSettingsPress={() => {
-          /* Phase 7: reader settings */
+          /* Phase 7 */
         }}
         visible={controlsVisible}
       />
 
-      {/* TOC drawer */}
       <TableOfContents
         toc={toc}
         visible={tocVisible}
         onClose={() => setTocVisible(false)}
         onNavigate={(href) => goToLocation(href)}
+      />
+    </View>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// PDF inner
+// ---------------------------------------------------------------------------
+
+function PdfContent({
+  bookId,
+  filePath,
+  title,
+}: {
+  bookId: string;
+  filePath: string;
+  title: string;
+}) {
+  const [controlsVisible, setControlsVisible] = useState(false);
+  const [progress, setProgress] = useState(0);
+
+  return (
+    <View className="flex-1 bg-[#525659]">
+      <Pressable onPress={() => setControlsVisible((v) => !v)} className="flex-1">
+        <PdfReader
+          bookId={bookId}
+          fileUri={filePath}
+          onPageChange={(page, total) => {
+            setProgress(total > 0 ? (page - 1) / total : 0);
+          }}
+        />
+      </Pressable>
+
+      <ReaderControls
+        title={title}
+        progress={progress}
+        onProgressChange={setProgress}
+        onTocPress={() => {
+          /* PDF TOC: Phase 9 */
+        }}
+        onSettingsPress={() => {
+          /* Phase 7 */
+        }}
+        visible={controlsVisible}
       />
     </View>
   );
@@ -101,9 +118,23 @@ export default function ReaderScreen() {
     );
   }
 
-  return (
-    <ReaderProvider>
-      <ReaderContent bookId={bookId} />
-    </ReaderProvider>
-  );
+  const book = getBookById(bookId);
+
+  if (!book) {
+    return (
+      <View className="flex-1 items-center justify-center bg-black">
+        <Text className="text-white">Book not found</Text>
+      </View>
+    );
+  }
+
+  if (book.format === 'epub') {
+    return (
+      <ReaderProvider>
+        <EpubContent bookId={bookId} filePath={book.filePath} title={book.title} />
+      </ReaderProvider>
+    );
+  }
+
+  return <PdfContent bookId={bookId} filePath={book.filePath} title={book.title} />;
 }
