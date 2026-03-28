@@ -7,6 +7,7 @@ import { getBookById } from '@/services/db/books';
 import { EpubReader, type EpubTocItem } from '@/features/reader/EpubReader';
 import { PdfReader } from '@/features/reader/PdfReader';
 import { ReaderControls } from '@/features/reader/ReaderControls';
+import { ReaderSettings } from '@/features/reader/ReaderSettings';
 import { TableOfContents } from '@/features/reader/TableOfContents';
 import { useSettingsStore } from '@/stores/settingsStore';
 
@@ -28,6 +29,7 @@ function EpubContent({
 
   const [controlsVisible, setControlsVisible] = useState(false);
   const [tocVisible, setTocVisible] = useState(false);
+  const [settingsVisible, setSettingsVisible] = useState(false);
   const [toc, setToc] = useState<EpubTocItem[]>([]);
   const [progress, setProgress] = useState(0);
 
@@ -42,9 +44,7 @@ function EpubContent({
         progress={progress}
         onProgressChange={setProgress}
         onTocPress={() => setTocVisible(true)}
-        onSettingsPress={() => {
-          /* Phase 7 */
-        }}
+        onSettingsPress={() => setSettingsVisible(true)}
         visible={controlsVisible}
       />
 
@@ -54,6 +54,8 @@ function EpubContent({
         onClose={() => setTocVisible(false)}
         onNavigate={(href) => goToLocation(href)}
       />
+
+      <ReaderSettings visible={settingsVisible} onClose={() => setSettingsVisible(false)} />
     </View>
   );
 }
@@ -72,6 +74,7 @@ function PdfContent({
   title: string;
 }) {
   const [controlsVisible, setControlsVisible] = useState(false);
+  const [settingsVisible, setSettingsVisible] = useState(false);
   const [progress, setProgress] = useState(0);
 
   return (
@@ -93,11 +96,12 @@ function PdfContent({
         onTocPress={() => {
           /* PDF TOC: Phase 9 */
         }}
-        onSettingsPress={() => {
-          /* Phase 7 */
-        }}
+        onSettingsPress={() => setSettingsVisible(true)}
         visible={controlsVisible}
       />
+
+      {/* Settings panel available for PDF too — theme affects chrome, not PDF content */}
+      <ReaderSettings visible={settingsVisible} onClose={() => setSettingsVisible(false)} />
     </View>
   );
 }

@@ -33,10 +33,34 @@ function EpubReaderInner({ bookId, fileUri, settings, onTocReady }: EpubReaderIn
   const { initialPosition, savePosition } = useReadingPosition(bookId);
   const didRestore = useRef(false);
 
-  const themeMap: Record<ReaderSettings['theme'], object> = {
-    day: { body: { background: '#ffffff', color: '#1a1a1a' } },
-    night: { body: { background: '#1a1a1a', color: '#e0e0e0' } },
-    sepia: { body: { background: '#f5e6c8', color: '#3b2d1e' } },
+  const fontFamilyMap: Record<ReaderSettings['fontFamily'], string> = {
+    system: '-apple-system, BlinkMacSystemFont, sans-serif',
+    serif: 'Georgia, "Times New Roman", serif',
+    'sans-serif': '"Helvetica Neue", Arial, sans-serif',
+  };
+
+  const bgMap: Record<ReaderSettings['theme'], string> = {
+    day: '#ffffff',
+    night: '#1a1a1a',
+    sepia: '#f5e6c8',
+  };
+
+  const colorMap: Record<ReaderSettings['theme'], string> = {
+    day: '#1a1a1a',
+    night: '#e0e0e0',
+    sepia: '#3b2d1e',
+  };
+
+  const theme = {
+    body: {
+      background: bgMap[settings.theme],
+      color: colorMap[settings.theme],
+      'font-size': `${settings.fontSize}px`,
+      'font-family': fontFamilyMap[settings.fontFamily],
+      'line-height': String(settings.lineSpacing),
+      'padding-left': `${settings.marginHorizontal}px`,
+      'padding-right': `${settings.marginHorizontal}px`,
+    },
   };
 
   return (
@@ -46,7 +70,7 @@ function EpubReaderInner({ bookId, fileUri, settings, onTocReady }: EpubReaderIn
         width={undefined as unknown as number} // fills container via flex
         height={undefined as unknown as number}
         fileSystem={useFileSystem}
-        defaultTheme={themeMap[settings.theme]}
+        defaultTheme={theme}
         initialLocation={initialPosition?.cfi ?? undefined}
         onReady={(book) => {
           // Restore position once book is ready (fallback: chapter index)
