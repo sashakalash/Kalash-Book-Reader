@@ -87,6 +87,7 @@ export function ReaderControls({
             thumbTintColor="#3b82f6"
             accessibilityLabel="Reading progress"
             accessibilityRole="adjustable"
+            accessibilityValue={{ min: 0, max: 100, now: Math.round(progress * 100) }}
           />
         </View>
       </SafeAreaView>

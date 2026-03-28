@@ -61,7 +61,11 @@ export async function importBookFromUri(
   // Check for duplicate by destination path
   const existing = findExistingByPath(destUri);
   if (existing) {
-    return { bookId: existing.id, title: existing.title, alreadyExists: true };
+    // Verify destination file still exists; if not, re-import it
+    const destInfo = await FileSystem.getInfoAsync(destUri);
+    if (destInfo.exists) {
+      return { bookId: existing.id, title: existing.title, alreadyExists: true };
+    }
   }
 
   // Copy file to sandbox

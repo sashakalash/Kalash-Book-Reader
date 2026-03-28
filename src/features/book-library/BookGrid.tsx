@@ -3,6 +3,7 @@ import { FlatList, RefreshControl, useWindowDimensions } from 'react-native';
 import type { Book } from '@/types';
 import { BookCard } from './BookCard';
 import { EmptyState } from './EmptyState';
+import { LibrarySkeleton } from './LibrarySkeleton';
 
 interface BookGridProps {
   books: Book[];
@@ -32,7 +33,11 @@ export function BookGrid({
   const numColumns = Math.max(2, Math.floor((width - PADDING * 2 + GAP) / (COLUMN_WIDTH + GAP)));
   const itemWidth = (width - PADDING * 2 - GAP * (numColumns - 1)) / numColumns;
 
-  if (books.length === 0 && !refreshing) {
+  if (refreshing && books.length === 0) {
+    return <LibrarySkeleton />;
+  }
+
+  if (books.length === 0) {
     return <EmptyState onImport={onImport} />;
   }
 

@@ -82,6 +82,7 @@ export function BookCard({ book, progress = 0, onPress, onLongPress }: BookCardP
       onLongPress={onLongPress}
       accessible
       accessibilityLabel={`${book.title}${book.author ? `, by ${book.author}` : ''}. ${STATUS_LABEL[book.status]}.`}
+      accessibilityHint="Double tap to open. Long press for options."
       accessibilityRole="button"
       className="active:opacity-70"
     >

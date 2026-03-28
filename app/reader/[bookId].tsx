@@ -1,7 +1,8 @@
-import { useState } from 'react';
-import { Pressable, View, Text } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Pressable, View, Text } from 'react-native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useReader, ReaderProvider } from '@epubjs-react-native/core';
+import * as FileSystem from 'expo-file-system';
 
 import { getBookById } from '@/services/db/books';
 import { EpubReader, type EpubTocItem } from '@/features/reader/EpubReader';
@@ -9,6 +10,7 @@ import { PdfReader } from '@/features/reader/PdfReader';
 import { ReaderControls } from '@/features/reader/ReaderControls';
 import { ReaderSettings } from '@/features/reader/ReaderSettings';
 import { TableOfContents } from '@/features/reader/TableOfContents';
+import { ReaderErrorBoundary } from '@/components/ReaderErrorBoundary';
 import { useSettingsStore } from '@/stores/settingsStore';
 
 // ---------------------------------------------------------------------------
@@ -113,6 +115,22 @@ function PdfContent({
 /** Unified reader entry point — routes to EPUB or PDF renderer by format. */
 export default function ReaderScreen() {
   const { bookId } = useLocalSearchParams<{ bookId: string }>();
+  const router = useRouter();
+  const [fileChecked, setFileChecked] = useState(false);
+  const [fileMissing, setFileMissing] = useState(false);
+
+  const book = bookId ? getBookById(bookId) : null;
+
+  useEffect(() => {
+    if (!book) {
+      setFileChecked(true);
+      return;
+    }
+    FileSystem.getInfoAsync(book.filePath).then((info) => {
+      setFileMissing(!info.exists);
+      setFileChecked(true);
+    });
+  }, [book]);
 
   if (!bookId) {
     return (
@@ -122,8 +140,6 @@ export default function ReaderScreen() {
     );
   }
 
-  const book = getBookById(bookId);
-
   if (!book) {
     return (
       <View className="flex-1 items-center justify-center bg-black">
@@ -132,13 +148,47 @@ export default function ReaderScreen() {
     );
   }
 
-  if (book.format === 'epub') {
+  if (!fileChecked) {
     return (
-      <ReaderProvider>
-        <EpubContent bookId={bookId} filePath={book.filePath} title={book.title} />
-      </ReaderProvider>
+      <View className="flex-1 items-center justify-center bg-black">
+        <ActivityIndicator color="white" />
+      </View>
     );
   }
 
-  return <PdfContent bookId={bookId} filePath={book.filePath} title={book.title} />;
+  if (fileMissing) {
+    return (
+      <View className="flex-1 items-center justify-center bg-black px-8">
+        <Text className="text-4xl mb-4">🔍</Text>
+        <Text className="text-white text-base font-semibold mb-2 text-center">File not found</Text>
+        <Text className="text-gray-400 text-sm text-center mb-8">
+          &ldquo;{book.title}&rdquo; was removed from device storage outside the app.
+        </Text>
+        <Pressable
+          onPress={() => router.back()}
+          accessibilityRole="button"
+          accessibilityLabel="Go back to library"
+          className="rounded-xl bg-white px-6 py-3 active:opacity-70"
+        >
+          <Text className="text-sm font-semibold text-black">Go back to library</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  if (book.format === 'epub') {
+    return (
+      <ReaderErrorBoundary onBack={() => router.back()}>
+        <ReaderProvider>
+          <EpubContent bookId={bookId} filePath={book.filePath} title={book.title} />
+        </ReaderProvider>
+      </ReaderErrorBoundary>
+    );
+  }
+
+  return (
+    <ReaderErrorBoundary onBack={() => router.back()}>
+      <PdfContent bookId={bookId} filePath={book.filePath} title={book.title} />
+    </ReaderErrorBoundary>
+  );
 }

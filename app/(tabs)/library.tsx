@@ -37,7 +37,12 @@ export default function LibraryScreen() {
       const result = await pickAndImportBook();
       if (result) {
         await refresh();
-        if (!result.alreadyExists) {
+        if (result.alreadyExists) {
+          Alert.alert('Already in library', `"${result.title}" is already in your library.`, [
+            { text: 'Open', onPress: () => router.push(`/reader/${result.bookId}`) },
+            { text: 'OK', style: 'cancel' },
+          ]);
+        } else {
           router.push(`/reader/${result.bookId}`);
         }
       }
