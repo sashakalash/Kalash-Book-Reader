@@ -27,16 +27,21 @@
     "drizzle-kit": "^0.31.10",
     "drizzle-orm": "^0.45.2",
     "expo": "55.0.10-canary-20260328-2049187",
+    "expo-document-picker": "55.0.10-canary-20260328-2049187",
+    "expo-file-system": "55.0.13-canary-20260328-2049187",
     "expo-router": "55.0.9-canary-20260328-2049187",
     "expo-sqlite": "55.0.12-canary-20260328-2049187",
     "expo-status-bar": "55.0.5-canary-20260328-2049187",
+    "fflate": "^0.8.2",
     "nativewind": "^4.2.3",
     "react": "19.2.0",
     "react-native": "0.83.4",
     "react-native-mmkv": "^4.3.0",
     "react-native-reanimated": "4.2.1",
+    "react-native-receive-sharing-intent": "^2.0.0",
     "react-native-safe-area-context": "~5.6.2",
-    "tailwindcss": "^3.4.19"
+    "tailwindcss": "^3.4.19",
+    "zustand": "^5.0.12"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
