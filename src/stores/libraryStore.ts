@@ -1,11 +1,12 @@
 import { create } from 'zustand';
 
 import { getAllBooks } from '@/services/db/books';
+import { getAllPositionsMap } from '@/services/db/positions';
 import type { Book, ReadingStatus } from '@/types';
 import type { BookRow } from '@/services/db/schema';
 
 // ---------------------------------------------------------------------------
-// Mapper: DB row → domain type
+// Mapper
 // ---------------------------------------------------------------------------
 
 function rowToBook(row: BookRow): Book {
@@ -29,14 +30,17 @@ function rowToBook(row: BookRow): Book {
 
 interface LibraryState {
   books: Book[];
+  /** bookId → 0–1 read percentage from SQLite canonical store. */
+  progressMap: Record<string, number>;
   loading: boolean;
   error: string | null;
-  /** Reload books from SQLite. */
+  /** Reload books and progress from SQLite. */
   refresh: () => Promise<void>;
 }
 
 export const useLibraryStore = create<LibraryState>((set) => ({
   books: [],
+  progressMap: {},
   loading: false,
   error: null,
 
@@ -44,7 +48,8 @@ export const useLibraryStore = create<LibraryState>((set) => ({
     set({ loading: true, error: null });
     try {
       const rows = getAllBooks();
-      set({ books: rows.map(rowToBook), loading: false });
+      const progressMap = getAllPositionsMap();
+      set({ books: rows.map(rowToBook), progressMap, loading: false });
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error';
       set({ error: message, loading: false });

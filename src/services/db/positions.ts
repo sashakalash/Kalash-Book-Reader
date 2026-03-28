@@ -132,3 +132,17 @@ export function flushAllPositionsOnBackground(bookIds: string[]): void {
     flushBookPositionOnBackground(id);
   }
 }
+
+/**
+ * Returns a map of bookId → percentage (0–1) for all books that have
+ * a reading position. Used by the library screen to render progress bars.
+ * Reads from SQLite only (canonical store).
+ */
+export function getAllPositionsMap(): Record<string, number> {
+  const rows = db.select().from(readingPositions).all();
+  const result: Record<string, number> = {};
+  for (const row of rows) {
+    result[row.bookId] = row.percentage;
+  }
+  return result;
+}
