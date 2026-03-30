@@ -1,7 +1,8 @@
 {
   "expo": {
-    "name": "kalash-book",
+    "name": "KalashBook",
     "slug": "kalash-book",
+    "scheme": "kalash-book",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -26,30 +27,9 @@
             "LSHandlerRank": "Alternate",
             "CFBundleTypeRole": "Viewer",
             "LSItemContentTypes": ["com.adobe.pdf"]
-          },
-          {
-            "CFBundleTypeName": "EPUB Document",
-            "LSHandlerRank": "Alternate",
-            "CFBundleTypeRole": "Viewer",
-            "LSItemContentTypes": ["org.idpf.epub-container"]
-          },
-          {
-            "CFBundleTypeName": "PDF Document",
-            "LSHandlerRank": "Alternate",
-            "CFBundleTypeRole": "Viewer",
-            "LSItemContentTypes": ["com.adobe.pdf"]
           }
         ],
         "UTImportedTypeDeclarations": [
-          {
-            "UTTypeIdentifier": "org.idpf.epub-container",
-            "UTTypeDescription": "EPUB e-book",
-            "UTTypeConformsTo": ["public.data", "public.composite-content"],
-            "UTTypeTagSpecification": {
-              "public.mime-type": "application/epub+zip",
-              "public.filename-extension": ["epub"]
-            }
-          },
           {
             "UTTypeIdentifier": "org.idpf.epub-container",
             "UTTypeDescription": "EPUB e-book",
@@ -72,24 +52,6 @@
       },
       "predictiveBackGestureEnabled": false,
       "intentFilters": [
-        {
-          "action": "VIEW",
-          "category": ["DEFAULT", "BROWSABLE"],
-          "data": [
-            {
-              "mimeType": "application/epub+zip"
-            }
-          ]
-        },
-        {
-          "action": "VIEW",
-          "category": ["DEFAULT", "BROWSABLE"],
-          "data": [
-            {
-              "mimeType": "application/pdf"
-            }
-          ]
-        },
         {
           "action": "VIEW",
           "category": ["DEFAULT", "BROWSABLE"],

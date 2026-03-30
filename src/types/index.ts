@@ -56,4 +56,5 @@ export interface ReaderSettings {
   fontFamily: 'system' | 'serif' | 'sans-serif';
   lineSpacing: number; // 1.0–2.0
   marginHorizontal: number; // 0–48
+  flow: 'paginated' | 'scrolled-doc';
 }

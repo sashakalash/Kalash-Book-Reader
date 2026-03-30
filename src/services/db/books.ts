@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 
 import { db } from './client';
 import { books, bookCategories, type BookInsert, type BookRow } from './schema';
@@ -40,10 +40,31 @@ export function assignCategory(bookId: string, categoryId: string): void {
 
 /** Remove a book from a category. */
 export function removeCategory(bookId: string, categoryId: string): void {
-  db.delete(bookCategories).where(eq(bookCategories.bookId, bookId)).run();
-  // Fine-grained delete using compound key — Drizzle requires explicit and()
-  // Simplified here; category filter added for correctness if multiple categories exist.
-  void categoryId; // referenced to avoid lint unused-var; full and() below if needed
+  db.delete(bookCategories)
+    .where(and(eq(bookCategories.bookId, bookId), eq(bookCategories.categoryId, categoryId)))
+    .run();
+}
+
+/**
+ * Deduplicate books by filePath — keeps the most recently added record,
+ * deletes all others with the same path. Runs synchronously (pure SQL).
+ */
+export function deduplicateBooks(): void {
+  const all = getAllBooks();
+  const byPath = new Map<string, BookRow[]>();
+  for (const b of all) {
+    const arr = byPath.get(b.filePath) ?? [];
+    arr.push(b);
+    byPath.set(b.filePath, arr);
+  }
+  for (const group of byPath.values()) {
+    if (group.length <= 1) continue;
+    // Keep the one with the highest dateAdded; delete the rest
+    group.sort((a, b) => b.dateAdded - a.dateAdded);
+    for (const stale of group.slice(1)) {
+      db.delete(books).where(eq(books.id, stale.id)).run();
+    }
+  }
 }
 
 /** Get all category ids for a book. */

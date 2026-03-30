@@ -1,10 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, View, Text } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useReader, ReaderProvider } from '@epubjs-react-native/core';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 
-import { getBookById } from '@/services/db/books';
+import { getBookById, updateBook } from '@/services/db/books';
 import { EpubReader, type EpubTocItem } from '@/features/reader/EpubReader';
 import { PdfReader } from '@/features/reader/PdfReader';
 import { ReaderControls } from '@/features/reader/ReaderControls';
@@ -26,8 +25,9 @@ function EpubContent({
   filePath: string;
   title: string;
 }) {
-  const { goToLocation } = useReader();
   const settings = useSettingsStore((s) => s.settings);
+  const navigateRef = useRef<((href: string) => void) | null>(null);
+  const seekRef = useRef<((pct: number) => void) | null>(null);
 
   const [controlsVisible, setControlsVisible] = useState(false);
   const [tocVisible, setTocVisible] = useState(false);
@@ -37,14 +37,21 @@ function EpubContent({
 
   return (
     <View className="flex-1 bg-white">
-      <Pressable onPress={() => setControlsVisible((v) => !v)} className="flex-1">
-        <EpubReader bookId={bookId} fileUri={filePath} settings={settings} onTocReady={setToc} />
-      </Pressable>
+      <EpubReader
+        bookId={bookId}
+        fileUri={filePath}
+        settings={settings}
+        onTocReady={setToc}
+        onProgressChange={setProgress}
+        onSingleTap={() => setControlsVisible((v) => !v)}
+        navigateRef={navigateRef}
+        seekRef={seekRef}
+      />
 
       <ReaderControls
         title={title}
         progress={progress}
-        onProgressChange={setProgress}
+        onProgressChange={(pct) => seekRef.current?.(pct)}
         onTocPress={() => setTocVisible(true)}
         onSettingsPress={() => setSettingsVisible(true)}
         visible={controlsVisible}
@@ -54,7 +61,7 @@ function EpubContent({
         toc={toc}
         visible={tocVisible}
         onClose={() => setTocVisible(false)}
-        onNavigate={(href) => goToLocation(href)}
+        onNavigate={(href) => navigateRef.current?.(href)}
       />
 
       <ReaderSettings visible={settingsVisible} onClose={() => setSettingsVisible(false)} />
@@ -75,28 +82,38 @@ function PdfContent({
   filePath: string;
   title: string;
 }) {
+  const settings = useSettingsStore((s) => s.settings);
   const [controlsVisible, setControlsVisible] = useState(false);
   const [settingsVisible, setSettingsVisible] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const pdfSeekRef = useRef<((page: number) => void) | null>(null);
 
   return (
     <View className="flex-1 bg-[#525659]">
-      <Pressable onPress={() => setControlsVisible((v) => !v)} className="flex-1">
-        <PdfReader
-          bookId={bookId}
-          fileUri={filePath}
-          onPageChange={(page, total) => {
-            setProgress(total > 0 ? (page - 1) / total : 0);
-          }}
-        />
-      </Pressable>
+      <PdfReader
+        bookId={bookId}
+        fileUri={filePath}
+        flow={settings.flow}
+        onPageCountReady={(total) => setTotalPages(total)}
+        onPageChange={(page, total) => {
+          setProgress(total > 0 ? (page - 1) / total : 0);
+        }}
+        onSingleTap={() => setControlsVisible((v) => !v)}
+        seekRef={pdfSeekRef}
+      />
 
       <ReaderControls
         title={title}
         progress={progress}
-        onProgressChange={setProgress}
+        onProgressChange={(pct) => {
+          if (totalPages > 0) {
+            const page = Math.max(1, Math.round(pct * totalPages));
+            pdfSeekRef.current?.(page);
+          }
+        }}
         onTocPress={() => {
-          /* PDF TOC: Phase 9 */
+          /* PDF TOC: future */
         }}
         onSettingsPress={() => setSettingsVisible(true)}
         visible={controlsVisible}
@@ -129,8 +146,12 @@ export default function ReaderScreen() {
     FileSystem.getInfoAsync(book.filePath).then((info) => {
       setFileMissing(!info.exists);
       setFileChecked(true);
+      if (info.exists && book.status === 'want-to-read') {
+        updateBook(book.id, { status: 'reading', dateModified: Date.now() });
+      }
     });
-  }, [book]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bookId]);
 
   if (!bookId) {
     return (
@@ -179,9 +200,7 @@ export default function ReaderScreen() {
   if (book.format === 'epub') {
     return (
       <ReaderErrorBoundary onBack={() => router.back()}>
-        <ReaderProvider>
-          <EpubContent bookId={bookId} filePath={book.filePath} title={book.title} />
-        </ReaderProvider>
+        <EpubContent bookId={bookId} filePath={book.filePath} title={book.title} />
       </ReaderErrorBoundary>
     );
   }

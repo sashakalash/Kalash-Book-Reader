@@ -1,6 +1,7 @@
+import { useEffect, useRef, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import Slider from '@react-native-community/slider';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 
 interface ReaderControlsProps {
@@ -16,6 +17,9 @@ interface ReaderControlsProps {
  * Overlay controls shown/hidden by tapping the center of the reader.
  * Top bar: back, title, TOC, settings.
  * Bottom bar: progress scrubber + percentage.
+ *
+ * Uses useSafeAreaInsets() directly (not SafeAreaView) so insets are
+ * stable across show/hide toggles and never jump off-screen.
  */
 export function ReaderControls({
   title,
@@ -26,13 +30,27 @@ export function ReaderControls({
   visible,
 }: ReaderControlsProps) {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+  // Local drag state — decoupled from reader progress while thumb is held.
+  // pendingSeek holds the dragged-to value after release, preventing snap-back
+  // to the stale progress until the reader catches up.
+  const [dragging, setDragging] = useState(false);
+  const [pendingSeek, setPendingSeek] = useState<number | null>(null);
+  const dragValue = useRef(progress);
+
+  // Clear pendingSeek once the reader's progress catches up to the sought position
+  useEffect(() => {
+    if (pendingSeek !== null && Math.abs(progress - pendingSeek) < 0.02) {
+      setPendingSeek(null);
+    }
+  }, [progress, pendingSeek]);
 
   if (!visible) return null;
 
   return (
-    <View className="absolute inset-0 pointer-events-box-none">
+    <View className="absolute inset-0" pointerEvents="box-none">
       {/* Top bar */}
-      <SafeAreaView edges={['top']} className="bg-white/95 px-4 shadow-sm">
+      <View className="bg-white/95 px-4 shadow-sm" style={{ paddingTop: insets.top }}>
         <View className="flex-row items-center py-2 gap-3">
           <Pressable
             onPress={() => router.back()}
@@ -65,23 +83,33 @@ export function ReaderControls({
             <Text className="text-xl">⚙</Text>
           </Pressable>
         </View>
-      </SafeAreaView>
+      </View>
 
-      {/* Spacer — tapping middle hides controls */}
-      <View className="flex-1 pointer-events-none" />
+      {/* Spacer — tapping middle passes through to WebView/PDF */}
+      <View style={{ flex: 1 }} pointerEvents="none" />
 
       {/* Bottom scrubber */}
-      <SafeAreaView edges={['bottom']} className="bg-white/95 px-4 shadow-sm">
+      <View className="bg-white/95 px-4 shadow-sm" style={{ paddingBottom: insets.bottom + 4 }}>
         <View className="flex-row items-center gap-3 py-3">
           <Text className="w-10 text-xs text-gray-500 text-right">
-            {Math.round(progress * 100)}%
+            {Math.round((dragging ? dragValue.current : (pendingSeek ?? progress)) * 100)}%
           </Text>
           <Slider
             style={{ flex: 1, height: 32 }}
             minimumValue={0}
             maximumValue={1}
-            value={progress}
-            onSlidingComplete={onProgressChange}
+            step={0.001}
+            value={dragging ? dragValue.current : (pendingSeek ?? progress)}
+            onValueChange={(v) => {
+              dragValue.current = v;
+              setDragging(true);
+            }}
+            onSlidingComplete={(v) => {
+              dragValue.current = v;
+              setPendingSeek(v);
+              setDragging(false);
+              onProgressChange(v);
+            }}
             minimumTrackTintColor="#3b82f6"
             maximumTrackTintColor="#e5e7eb"
             thumbTintColor="#3b82f6"
@@ -90,7 +118,7 @@ export function ReaderControls({
             accessibilityValue={{ min: 0, max: 100, now: Math.round(progress * 100) }}
           />
         </View>
-      </SafeAreaView>
+      </View>
     </View>
   );
 }

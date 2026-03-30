@@ -1,63 +1,38 @@
+import { useState } from 'react';
 import { Image, Pressable, Text, View } from 'react-native';
 
-import type { Book, ReadingStatus } from '@/types';
+import type { Book } from '@/types';
 
 // ---------------------------------------------------------------------------
-// Status badge
+// Cover placeholder — generated gradient-like bg from title initial
 // ---------------------------------------------------------------------------
 
-const STATUS_LABEL: Record<ReadingStatus, string> = {
-  'want-to-read': 'Want',
-  reading: 'Reading',
-  finished: 'Done',
-};
+const PLACEHOLDER_COLORS = [
+  ['#1a1a2e', '#16213e'],
+  ['#2d1b69', '#11998e'],
+  ['#373b44', '#4286f4'],
+  ['#4a1942', '#c0392b'],
+  ['#134e5e', '#71b280'],
+  ['#373b44', '#8e44ad'],
+];
 
-const STATUS_COLOR: Record<ReadingStatus, string> = {
-  'want-to-read': 'bg-gray-200',
-  reading: 'bg-blue-100',
-  finished: 'bg-green-100',
-};
+function CoverPlaceholder({ title, author }: { title: string; author: string | null }) {
+  const idx = title.charCodeAt(0) % PLACEHOLDER_COLORS.length;
+  const [bg] = PLACEHOLDER_COLORS[idx];
 
-const STATUS_TEXT_COLOR: Record<ReadingStatus, string> = {
-  'want-to-read': 'text-gray-600',
-  reading: 'text-blue-700',
-  finished: 'text-green-700',
-};
-
-function StatusBadge({ status }: { status: ReadingStatus }) {
   return (
-    <View className={`rounded-full px-2 py-0.5 ${STATUS_COLOR[status]}`}>
-      <Text className={`text-[10px] font-semibold ${STATUS_TEXT_COLOR[status]}`}>
-        {STATUS_LABEL[status]}
+    <View
+      className="h-full w-full items-center justify-center px-3"
+      style={{ backgroundColor: bg }}
+    >
+      <Text className="text-center text-xs font-semibold text-white leading-snug" numberOfLines={6}>
+        {title}
       </Text>
-    </View>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Progress bar
-// ---------------------------------------------------------------------------
-
-function ProgressBar({ percentage }: { percentage: number }) {
-  const pct = Math.min(Math.max(percentage, 0), 1);
-  if (pct === 0) return null;
-
-  return (
-    <View className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-gray-200">
-      <View className="h-full rounded-full bg-blue-500" style={{ width: `${pct * 100}%` }} />
-    </View>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Cover placeholder
-// ---------------------------------------------------------------------------
-
-function CoverPlaceholder({ title }: { title: string }) {
-  const letter = title.trim()[0]?.toUpperCase() ?? '?';
-  return (
-    <View className="h-full w-full items-center justify-center bg-blue-50">
-      <Text className="text-4xl font-bold text-blue-300">{letter}</Text>
+      {author && (
+        <Text className="mt-2 text-center text-[10px] text-white/70" numberOfLines={2}>
+          {author}
+        </Text>
+      )}
     </View>
   );
 }
@@ -68,57 +43,103 @@ function CoverPlaceholder({ title }: { title: string }) {
 
 interface BookCardProps {
   book: Book;
-  /** 0–1 read progress. Defaults to 0. */
   progress?: number;
+  notesCount?: number;
   onPress: () => void;
-  onLongPress: () => void;
+  onMorePress: () => void;
+  onNotesPress: () => void;
 }
 
-/** Grid card showing book cover, title, author, progress bar and status badge. */
-export function BookCard({ book, progress = 0, onPress, onLongPress }: BookCardProps) {
+/** Grid card: large cover, progress %, NEW badge, rating, notes icon, ... menu. */
+export function BookCard({
+  book,
+  progress = 0,
+  notesCount = 0,
+  onPress,
+  onMorePress,
+  onNotesPress,
+}: BookCardProps) {
+  const [coverError, setCoverError] = useState(false);
+  // Clamp to 0–100 regardless of what's stored (guards against stale data > 1)
+  const pct = Math.min(100, Math.max(0, Math.round(progress * 100)));
+  const isNew = book.status === 'want-to-read' && pct === 0;
+  const showCover = book.coverPath && !coverError;
+
   return (
     <Pressable
       onPress={onPress}
-      onLongPress={onLongPress}
       accessible
-      accessibilityLabel={`${book.title}${book.author ? `, by ${book.author}` : ''}. ${STATUS_LABEL[book.status]}.`}
-      accessibilityHint="Double tap to open. Long press for options."
       accessibilityRole="button"
-      className="active:opacity-70"
+      accessibilityLabel={`${book.title}${book.author ? `, by ${book.author}` : ''}`}
+      accessibilityHint="Double tap to open"
+      className="active:opacity-75"
     >
       {/* Cover */}
-      <View className="aspect-[2/3] w-full overflow-hidden rounded-lg bg-gray-100 shadow-sm">
-        {book.coverPath ? (
+      <View
+        className="aspect-[2/3] w-full overflow-hidden rounded-xl"
+        style={{
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.18,
+          shadowRadius: 8,
+          elevation: 5,
+        }}
+      >
+        {showCover ? (
           <Image
-            source={{ uri: `file://${book.coverPath}` }}
+            source={{ uri: book.coverPath! }}
             className="h-full w-full"
             resizeMode="cover"
             accessibilityLabel={`Cover of ${book.title}`}
+            onError={() => setCoverError(true)}
           />
         ) : (
-          <CoverPlaceholder title={book.title} />
+          <CoverPlaceholder title={book.title} author={book.author} />
+        )}
+
+        {/* Notes icon — pencil on notebook, tappable */}
+        {notesCount > 0 && (
+          <Pressable
+            onPress={onNotesPress}
+            hitSlop={6}
+            accessibilityRole="button"
+            accessibilityLabel="View notes"
+            className="absolute top-1.5 right-1.5 active:opacity-60"
+          >
+            <View className="bg-amber-400 rounded-full w-6 h-6 items-center justify-center">
+              <Text className="text-[12px]">📝</Text>
+            </View>
+          </Pressable>
         )}
       </View>
 
-      {/* Meta */}
-      <View className="mt-1.5 px-0.5">
-        <Text className="text-xs font-semibold text-gray-900 leading-tight" numberOfLines={2}>
-          {book.title}
-        </Text>
-        {book.author && (
-          <Text className="mt-0.5 text-[11px] text-gray-500" numberOfLines={1}>
-            {book.author}
-          </Text>
-        )}
-
-        <View className="mt-1 flex-row items-center justify-between">
-          <StatusBadge status={book.status} />
-          {progress > 0 && (
-            <Text className="text-[10px] text-gray-400">{Math.round(progress * 100)}%</Text>
+      {/* Info row */}
+      <View className="mt-1.5 flex-row items-center justify-between px-0.5">
+        <View className="flex-row items-center gap-1.5 flex-1">
+          {isNew ? (
+            <View className="rounded-full bg-blue-500 px-2 py-0.5">
+              <Text className="text-[10px] font-bold text-white">NEW</Text>
+            </View>
+          ) : (
+            <Text className="text-xs font-medium text-gray-500">{pct > 0 ? `${pct}%` : '—'}</Text>
+          )}
+          {book.rating != null && (
+            <View className="flex-row items-center gap-0.5">
+              <Text className="text-[10px] text-amber-500">★</Text>
+              <Text className="text-[10px] font-semibold text-gray-600">{book.rating}</Text>
+            </View>
           )}
         </View>
 
-        <ProgressBar percentage={progress} />
+        <Pressable
+          onPress={onMorePress}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="More options"
+          className="active:opacity-50"
+        >
+          <Text className="text-base font-bold text-gray-400 leading-none">···</Text>
+        </Pressable>
       </View>
     </Pressable>
   );

@@ -3,6 +3,8 @@ import '../global.css';
 import { useEffect } from 'react';
 import { Stack, useRouter } from 'expo-router';
 import { ActivityIndicator, View, Text } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import ReceiveSharingIntent from 'react-native-receive-sharing-intent';
 
 import { useDbMigrations } from '@/services/db/migrate';
@@ -61,12 +63,16 @@ export default function RootLayout() {
   }
 
   return (
-    <Stack>
-      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      <Stack.Screen
-        name="reader/[bookId]"
-        options={{ headerShown: false, presentation: 'fullScreenModal' }}
-      />
-    </Stack>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <Stack initialRouteName="(tabs)">
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen
+            name="reader/[bookId]"
+            options={{ headerShown: false, presentation: 'fullScreenModal' }}
+          />
+        </Stack>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }

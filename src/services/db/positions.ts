@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm';
 
-import { positionStorage } from '../storage/mmkv';
+import { getPositionStorage } from '../storage/mmkv';
 import { db } from './client';
 import { readingPositions, type ReadingPositionInsert, type ReadingPositionRow } from './schema';
 
@@ -28,15 +28,15 @@ const mmkvTsKey = (bookId: string) => `pos_ts:${bookId}`;
 /** Write position to MMKV. Called debounced (~2 s) while reading. */
 export function savePositionToMmkv(bookId: string, update: PositionUpdate): void {
   const now = Date.now();
-  positionStorage.set(mmkvKey(bookId), JSON.stringify({ ...update, bookId, updatedAt: now }));
-  positionStorage.set(mmkvTsKey(bookId), now);
+  getPositionStorage().set(mmkvKey(bookId), JSON.stringify({ ...update, bookId, updatedAt: now }));
+  getPositionStorage().set(mmkvTsKey(bookId), now);
 }
 
 /** Read position from MMKV. Returns null if not present. */
 function loadPositionFromMmkv(
   bookId: string,
 ): (ReadingPositionInsert & { updatedAt: number }) | null {
-  const raw = positionStorage.getString(mmkvKey(bookId));
+  const raw = getPositionStorage().getString(mmkvKey(bookId));
   if (!raw) return null;
   try {
     return JSON.parse(raw) as ReadingPositionInsert & { updatedAt: number };
@@ -133,16 +133,42 @@ export function flushAllPositionsOnBackground(bookIds: string[]): void {
   }
 }
 
+/** Normalize percentage to 0–1 range (guards against stale 0–100 data). */
+function normalizePct(pct: number): number {
+  return pct > 1 ? pct / 100 : pct;
+}
+
 /**
  * Returns a map of bookId → percentage (0–1) for all books that have
- * a reading position. Used by the library screen to render progress bars.
- * Reads from SQLite only (canonical store).
+ * a reading position. Merges SQLite (canonical) with MMKV (hot) data,
+ * preferring the more recent value so the library screen stays current
+ * even if a SQLite flush hasn't happened yet.
  */
 export function getAllPositionsMap(): Record<string, number> {
   const rows = db.select().from(readingPositions).all();
   const result: Record<string, number> = {};
   for (const row of rows) {
-    result[row.bookId] = row.percentage;
+    result[row.bookId] = normalizePct(row.percentage);
+  }
+  // Overlay MMKV values — they may be newer than SQLite
+  const storage = getPositionStorage();
+  const allKeys = storage.getAllKeys();
+  for (const key of allKeys) {
+    if (!key.startsWith('pos:')) continue;
+    const bookId = key.slice(4);
+    const raw = storage.getString(key);
+    if (!raw) continue;
+    try {
+      const parsed = JSON.parse(raw) as { percentage?: number; updatedAt?: number };
+      if (parsed.percentage == null) continue;
+      const sqlRow = rows.find((r) => r.bookId === bookId);
+      const mmkvTs = storage.getNumber(mmkvTsKey(bookId)) ?? 0;
+      if (!sqlRow || mmkvTs >= sqlRow.updatedAt) {
+        result[bookId] = normalizePct(parsed.percentage);
+      }
+    } catch {
+      // skip malformed entries
+    }
   }
   return result;
 }

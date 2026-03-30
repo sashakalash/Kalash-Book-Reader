@@ -1,4 +1,5 @@
-import { Modal, Pressable, Text, View } from 'react-native';
+import { useRef } from 'react';
+import { Modal, PanResponder, Pressable, Text, View } from 'react-native';
 import Slider from '@react-native-community/slider';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -46,41 +47,41 @@ function ThemeButton({
   );
 }
 
-function FontFamilyButton({
-  label,
-  value,
-  active,
-  onPress,
-}: {
-  label: string;
-  value: ReaderSettings['fontFamily'];
-  active: boolean;
-  onPress: (v: ReaderSettings['fontFamily']) => void;
-}) {
-  const fontFamilyMap: Record<ReaderSettings['fontFamily'], string | undefined> = {
-    system: undefined,
-    serif: 'Georgia',
-    'sans-serif': 'Helvetica Neue',
-  };
-  return (
-    <Pressable
-      onPress={() => onPress(value)}
-      accessibilityRole="button"
-      accessibilityLabel={`${label} font`}
-      accessibilityState={{ selected: active }}
-      className={`flex-1 items-center rounded-xl border-2 py-3 ${
-        active ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-white'
-      }`}
-    >
-      <Text
-        style={{ fontFamily: fontFamilyMap[value] }}
-        className={`text-base ${active ? 'font-semibold text-blue-600' : 'text-gray-700'}`}
-      >
-        {label}
-      </Text>
-    </Pressable>
-  );
-}
+// function FontFamilyButton({
+//   label,
+//   value,
+//   active,
+//   onPress,
+// }: {
+//   label: string;
+//   value: ReaderSettings['fontFamily'];
+//   active: boolean;
+//   onPress: (v: ReaderSettings['fontFamily']) => void;
+// }) {
+//   const fontFamilyMap: Record<ReaderSettings['fontFamily'], string | undefined> = {
+//     system: undefined,
+//     serif: 'Georgia',
+//     'sans-serif': 'Helvetica Neue',
+//   };
+//   return (
+//     <Pressable
+//       onPress={() => onPress(value)}
+//       accessibilityRole="button"
+//       accessibilityLabel={`${label} font`}
+//       accessibilityState={{ selected: active }}
+//       className={`flex-1 items-center rounded-xl border-2 py-3 ${
+//         active ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-white'
+//       }`}
+//     >
+//       <Text
+//         style={{ fontFamily: fontFamilyMap[value] }}
+//         className={`text-base ${active ? 'font-semibold text-blue-600' : 'text-gray-700'}`}
+//       >
+//         {label}
+//       </Text>
+//     </Pressable>
+//   );
+// }
 
 // ---------------------------------------------------------------------------
 // Main component
@@ -94,6 +95,16 @@ interface ReaderSettingsProps {
 /** Bottom sheet for reader preferences. Changes are applied immediately via settingsStore. */
 export function ReaderSettings({ visible, onClose }: ReaderSettingsProps) {
   const { settings, update } = useSettingsStore();
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (_, gs) => gs.dy > 5,
+      onPanResponderRelease: (_, gs) => {
+        if (gs.dy > 60) onClose();
+      },
+    }),
+  ).current;
 
   return (
     <Modal
@@ -113,8 +124,10 @@ export function ReaderSettings({ visible, onClose }: ReaderSettingsProps) {
 
       {/* Sheet */}
       <SafeAreaView edges={['bottom']} className="rounded-t-2xl bg-white px-5 pt-3 pb-4">
-        {/* Handle */}
-        <View className="mb-4 self-center h-1 w-10 rounded-full bg-gray-300" />
+        {/* Handle — drag down to close */}
+        <View {...panResponder.panHandlers} className="mb-4 items-center py-2">
+          <View className="h-1 w-10 rounded-full bg-gray-300" />
+        </View>
 
         {/* Header */}
         <View className="mb-5 flex-row items-center justify-between">
@@ -178,71 +191,43 @@ export function ReaderSettings({ visible, onClose }: ReaderSettingsProps) {
           </Text>
         </View>
 
-        {/* Font family */}
-        <SectionLabel>Font</SectionLabel>
+        {/* Reading mode */}
+        <SectionLabel>Reading mode</SectionLabel>
         <View className="mb-5 flex-row gap-2">
-          <FontFamilyButton
-            label="System"
-            value="system"
-            active={settings.fontFamily === 'system'}
-            onPress={(v) => update({ fontFamily: v })}
-          />
-          <FontFamilyButton
-            label="Serif"
-            value="serif"
-            active={settings.fontFamily === 'serif'}
-            onPress={(v) => update({ fontFamily: v })}
-          />
-          <FontFamilyButton
-            label="Sans"
-            value="sans-serif"
-            active={settings.fontFamily === 'sans-serif'}
-            onPress={(v) => update({ fontFamily: v })}
-          />
-        </View>
-
-        {/* Line spacing */}
-        <SectionLabel>Line spacing</SectionLabel>
-        <View className="mb-5 flex-row items-center gap-3">
-          <Text className="text-xs text-gray-400">≡</Text>
-          <Slider
-            style={{ flex: 1, height: 32 }}
-            minimumValue={1.0}
-            maximumValue={2.0}
-            step={0.1}
-            value={settings.lineSpacing}
-            onValueChange={(v) => update({ lineSpacing: Math.round(v * 10) / 10 })}
-            minimumTrackTintColor="#3b82f6"
-            maximumTrackTintColor="#e5e7eb"
-            thumbTintColor="#3b82f6"
-            accessibilityLabel="Line spacing"
-            accessibilityRole="adjustable"
-          />
-          <Text className="w-8 text-center text-sm font-semibold text-gray-700">
-            {settings.lineSpacing.toFixed(1)}
-          </Text>
-        </View>
-
-        {/* Margins */}
-        <SectionLabel>Margins</SectionLabel>
-        <View className="flex-row items-center gap-3">
-          <Text className="text-xs text-gray-400">|T|</Text>
-          <Slider
-            style={{ flex: 1, height: 32 }}
-            minimumValue={0}
-            maximumValue={48}
-            step={4}
-            value={settings.marginHorizontal}
-            onValueChange={(v) => update({ marginHorizontal: v })}
-            minimumTrackTintColor="#3b82f6"
-            maximumTrackTintColor="#e5e7eb"
-            thumbTintColor="#3b82f6"
-            accessibilityLabel="Horizontal margins"
-            accessibilityRole="adjustable"
-          />
-          <Text className="w-8 text-center text-sm font-semibold text-gray-700">
-            {settings.marginHorizontal}
-          </Text>
+          <Pressable
+            onPress={() => update({ flow: 'paginated' })}
+            accessibilityRole="button"
+            accessibilityLabel="Paginated mode"
+            accessibilityState={{ selected: settings.flow === 'paginated' }}
+            className={`flex-1 items-center rounded-xl border-2 py-3 ${
+              settings.flow === 'paginated'
+                ? 'border-blue-500 bg-blue-50'
+                : 'border-gray-200 bg-white'
+            }`}
+          >
+            <Text
+              className={`text-sm ${settings.flow === 'paginated' ? 'font-semibold text-blue-600' : 'text-gray-700'}`}
+            >
+              Pages
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={() => update({ flow: 'scrolled-doc' })}
+            accessibilityRole="button"
+            accessibilityLabel="Scroll mode"
+            accessibilityState={{ selected: settings.flow === 'scrolled-doc' }}
+            className={`flex-1 items-center rounded-xl border-2 py-3 ${
+              settings.flow === 'scrolled-doc'
+                ? 'border-blue-500 bg-blue-50'
+                : 'border-gray-200 bg-white'
+            }`}
+          >
+            <Text
+              className={`text-sm ${settings.flow === 'scrolled-doc' ? 'font-semibold text-blue-600' : 'text-gray-700'}`}
+            >
+              Scroll
+            </Text>
+          </Pressable>
         </View>
       </SafeAreaView>
     </Modal>

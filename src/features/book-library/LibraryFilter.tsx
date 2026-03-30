@@ -61,7 +61,8 @@ export function LibraryFilter({ filters, categories, onChange }: LibraryFilterPr
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
-      contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 8, gap: 6 }}
+      style={{ height: 52, flexGrow: 0 }}
+      contentContainerStyle={{ paddingHorizontal: 16, gap: 6, alignItems: 'center', flexGrow: 0 }}
       className="border-b border-gray-100 bg-white"
     >
       {/* Status chips */}

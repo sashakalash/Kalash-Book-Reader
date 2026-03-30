@@ -1,8 +1,10 @@
 import * as DocumentPicker from 'expo-document-picker';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { randomUUID } from 'expo-crypto';
 
-import { insertBook, getAllBooks } from '../db/books';
+import PdfThumbnail from 'react-native-pdf-thumbnail';
+
+import { insertBook, getAllBooks, deleteBook } from '../db/books';
 import { parseEpubMetadata } from './epubMeta';
 import type { BookFormat } from '@/types';
 
@@ -58,18 +60,16 @@ export async function importBookFromUri(
   // Ensure destination directory exists
   await FileSystem.makeDirectoryAsync(destDir, { intermediates: true });
 
-  // Check for duplicate by destination path
-  const existing = findExistingByPath(destUri);
-  if (existing) {
-    // Verify destination file still exists; if not, re-import it
-    const destInfo = await FileSystem.getInfoAsync(destUri);
-    if (destInfo.exists) {
-      return { bookId: existing.id, title: existing.title, alreadyExists: true };
-    }
+  // Remove all stale duplicate records pointing to the same path
+  removeAllByPath(destUri);
+
+  // Check if the file already exists at the destination (e.g. previous import)
+  const destInfo = await FileSystem.getInfoAsync(destUri);
+  if (!destInfo.exists) {
+    await FileSystem.copyAsync({ from: sourceUri, to: destUri });
   }
 
-  // Copy file to sandbox
-  await FileSystem.copyAsync({ from: sourceUri, to: destUri });
+  // Copy file to sandbox (skip if already present)
 
   // Extract metadata
   const { title, author, coverBase64 } = await extractMetadata(destUri, originalName, format);
@@ -110,8 +110,11 @@ function sanitizeFilename(name: string): string {
   return name.replace(/[^a-zA-Z0-9._-]/g, '_');
 }
 
-function findExistingByPath(filePath: string) {
-  return getAllBooks().find((b) => b.filePath === filePath) ?? null;
+/** Delete ALL book records pointing to the given filePath (deduplication). */
+function removeAllByPath(filePath: string): void {
+  getAllBooks()
+    .filter((b) => b.filePath === filePath)
+    .forEach((b) => deleteBook(b.id));
 }
 
 async function extractMetadata(
@@ -126,9 +129,25 @@ async function extractMetadata(
       // Fall through to filename-based title
     }
   }
-  // PDF or EPUB parse failure — use filename as title
   const title = originalName.replace(/\.(epub|pdf)$/i, '').replace(/_/g, ' ');
+  if (format === 'pdf') {
+    try {
+      const coverBase64 = await extractPdfCover(fileUri);
+      return { title, author: null, coverBase64 };
+    } catch {
+      // Fall through — no cover
+    }
+  }
   return { title, author: null, coverBase64: null };
+}
+
+/** Render first page of a PDF as a JPEG thumbnail. */
+async function extractPdfCover(fileUri: string): Promise<string | null> {
+  const { uri } = await PdfThumbnail.generate(fileUri, 0);
+  const base64 = await FileSystem.readAsStringAsync(uri, {
+    encoding: FileSystem.EncodingType.Base64,
+  });
+  return `data:image/jpeg;base64,${base64}`;
 }
 
 async function saveCoverImage(base64DataUri: string, destDir: string): Promise<string> {

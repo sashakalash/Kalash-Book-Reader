@@ -1,4 +1,4 @@
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, sql } from 'drizzle-orm';
 import { randomUUID } from 'expo-crypto';
 
 import { db } from './client';
@@ -26,6 +26,16 @@ export function createNote(bookId: string, text: string): string {
 /** Update note text. */
 export function updateNote(id: string, text: string): void {
   db.update(notes).set({ text: text.trim(), updatedAt: Date.now() }).where(eq(notes.id, id)).run();
+}
+
+/** Returns a map of bookId → note count for all books that have notes. */
+export function getAllNotesCountMap(): Record<string, number> {
+  const rows = db
+    .select({ bookId: notes.bookId, count: sql<number>`count(*)` })
+    .from(notes)
+    .groupBy(notes.bookId)
+    .all();
+  return Object.fromEntries(rows.map((r) => [r.bookId, r.count]));
 }
 
 /** Delete a note. */

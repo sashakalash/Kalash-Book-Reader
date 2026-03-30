@@ -4,6 +4,7 @@ import { AppState, type AppStateStatus } from 'react-native';
 import {
   savePositionToMmkv,
   flushBookPositionOnBackground,
+  flushPositionToSqlite,
   loadPosition,
   type PositionUpdate,
 } from '@/services/db/positions';
@@ -31,9 +32,13 @@ export function useReadingPosition(bookId: string): {
   // Load initial position once
   const initialPosition = loadPosition(bookId) as ReadingPosition | null;
 
+  // Track latest update so unmount can flush it even if debounce hasn't fired
+  const latestUpdate = useRef<PositionUpdate | null>(null);
+
   // Debounced save to MMKV
   const savePosition = useCallback(
     (update: PositionUpdate) => {
+      latestUpdate.current = update;
       if (debounceTimer.current) clearTimeout(debounceTimer.current);
       debounceTimer.current = setTimeout(() => {
         savePositionToMmkv(bookId, update);
@@ -66,8 +71,14 @@ export function useReadingPosition(bookId: string): {
     return () => {
       if (periodicTimer.current) clearInterval(periodicTimer.current);
       if (debounceTimer.current) clearTimeout(debounceTimer.current);
-      // Final flush on unmount
-      flushBookPositionOnBackground(bookId);
+      // Flush latest position directly to both MMKV and SQLite on unmount
+      // so the library screen shows up-to-date progress immediately.
+      if (latestUpdate.current) {
+        savePositionToMmkv(bookId, latestUpdate.current);
+        flushPositionToSqlite(bookId, latestUpdate.current);
+      } else {
+        flushBookPositionOnBackground(bookId);
+      }
     };
   }, [bookId]);
 

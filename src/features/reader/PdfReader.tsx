@@ -1,19 +1,25 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { Alert, StyleSheet, View } from 'react-native';
-import Pdf from 'react-native-pdf';
-import * as FileSystem from 'expo-file-system';
+import Pdf, { type PdfRef } from 'react-native-pdf';
+import * as FileSystem from 'expo-file-system/legacy';
 
 import { useReadingPosition } from '@/hooks/useReadingPosition';
+import type { ReaderSettings } from '@/types';
 
 const MAX_SAFE_FILE_SIZE_BYTES = 50 * 1024 * 1024; // 50 MB
 
 interface PdfReaderProps {
   bookId: string;
   fileUri: string;
+  flow: ReaderSettings['flow'];
   /** Fires when total page count is known. */
   onPageCountReady?: (total: number) => void;
   /** Fires on every page change — passes current page and total. */
   onPageChange?: (page: number, total: number) => void;
+  /** Called when user taps the PDF (for showing/hiding controls). */
+  onSingleTap?: () => void;
+  /** Ref populated with a function to jump to a specific page. */
+  seekRef?: { current: ((page: number) => void) | null };
 }
 
 /**
@@ -22,17 +28,38 @@ interface PdfReaderProps {
  * - Restores last read page from position store.
  * - Saves page to MMKV on every page change (debounced via useReadingPosition).
  */
-export function PdfReader({ bookId, fileUri, onPageCountReady, onPageChange }: PdfReaderProps) {
+export function PdfReader({
+  bookId,
+  fileUri,
+  flow,
+  onPageCountReady,
+  onPageChange,
+  onSingleTap,
+  seekRef,
+}: PdfReaderProps) {
   const { initialPosition, savePosition } = useReadingPosition(bookId);
-  const [, setTotalPages] = useState(0);
+  const pdfRef = useRef<PdfRef>(null);
   const warningShown = useRef(false);
+
+  // Populate seekRef so the parent can jump to any page
+  useEffect(() => {
+    if (seekRef) {
+      seekRef.current = (page: number) => {
+        pdfRef.current?.setPage(page);
+      };
+    }
+  }, [seekRef]);
 
   // Warn for large files once
   useEffect(() => {
     if (warningShown.current) return;
-    FileSystem.getInfoAsync(fileUri, { size: true })
+    FileSystem.getInfoAsync(fileUri)
       .then((info) => {
-        if (info.exists && 'size' in info && info.size > MAX_SAFE_FILE_SIZE_BYTES) {
+        if (
+          info.exists &&
+          'size' in info &&
+          (info as { size: number }).size > MAX_SAFE_FILE_SIZE_BYTES
+        ) {
           warningShown.current = true;
           Alert.alert(
             'Large file',
@@ -51,15 +78,14 @@ export function PdfReader({ bookId, fileUri, onPageCountReady, onPageChange }: P
   return (
     <View style={styles.container}>
       <Pdf
+        ref={pdfRef}
         source={{ uri: fileUri, cache: true }}
         style={styles.pdf}
         page={initialPage}
-        // Virtualized rendering — only renders pages near the viewport
-        enablePaging
-        horizontal={false}
+        horizontal={flow === 'paginated'}
+        enablePaging={flow === 'paginated'}
         fitPolicy={0} // fit width
         onLoadComplete={(numberOfPages) => {
-          setTotalPages(numberOfPages);
           onPageCountReady?.(numberOfPages);
         }}
         onPageChanged={(page, numberOfPages) => {
@@ -73,12 +99,11 @@ export function PdfReader({ bookId, fileUri, onPageCountReady, onPageChange }: P
             textAnchor: null,
           });
         }}
+        onPageSingleTap={onSingleTap}
         onError={(error) => {
           Alert.alert('PDF error', String(error));
         }}
-        activityIndicator={undefined}
         trustAllCerts={false}
-        accessibilityLabel="PDF document"
       />
     </View>
   );
