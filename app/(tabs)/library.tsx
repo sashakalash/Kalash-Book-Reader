@@ -4,7 +4,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { useLibraryStore } from '@/stores/libraryStore';
+import { useLibrary } from '@/hooks/useLibrary';
 import { pickAndImportBook } from '@/services/file/importer';
 import { deleteBook, updateBook } from '@/services/db/books';
 import { getAllCategories, getBookIdsForCategory } from '@/services/db/categories';
@@ -22,7 +22,7 @@ import type { CategoryRow } from '@/services/db/schema';
 export default function LibraryScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { books, progressMap, notesCountMap, loading, error, refresh } = useLibraryStore();
+  const { books, progressMap, notesCountMap, loading, error, refresh } = useLibrary();
 
   const [importing, setImporting] = useState(false);
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);

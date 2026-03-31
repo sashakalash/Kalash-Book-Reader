@@ -10,7 +10,7 @@ import { ReaderControls } from '@/features/reader/ReaderControls';
 import { ReaderSettings } from '@/features/reader/ReaderSettings';
 import { TableOfContents } from '@/features/reader/TableOfContents';
 import { ReaderErrorBoundary } from '@/components/ReaderErrorBoundary';
-import { useSettingsStore } from '@/stores/settingsStore';
+import { useReaderSettings } from '@/hooks/useReaderSettings';
 
 // ---------------------------------------------------------------------------
 // EPUB inner — needs useReader() so must live inside ReaderProvider
@@ -25,7 +25,7 @@ function EpubContent({
   filePath: string;
   title: string;
 }) {
-  const settings = useSettingsStore((s) => s.settings);
+  const { settings, update: updateSettings } = useReaderSettings();
   const navigateRef = useRef<((href: string) => void) | null>(null);
   const seekRef = useRef<((pct: number) => void) | null>(null);
 
@@ -64,7 +64,12 @@ function EpubContent({
         onNavigate={(href) => navigateRef.current?.(href)}
       />
 
-      <ReaderSettings visible={settingsVisible} onClose={() => setSettingsVisible(false)} />
+      <ReaderSettings
+        visible={settingsVisible}
+        onClose={() => setSettingsVisible(false)}
+        settings={settings}
+        onUpdate={updateSettings}
+      />
     </View>
   );
 }
@@ -82,7 +87,7 @@ function PdfContent({
   filePath: string;
   title: string;
 }) {
-  const settings = useSettingsStore((s) => s.settings);
+  const { settings, update: updateSettings } = useReaderSettings();
   const [controlsVisible, setControlsVisible] = useState(false);
   const [settingsVisible, setSettingsVisible] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -120,7 +125,12 @@ function PdfContent({
       />
 
       {/* Settings panel available for PDF too — theme affects chrome, not PDF content */}
-      <ReaderSettings visible={settingsVisible} onClose={() => setSettingsVisible(false)} />
+      <ReaderSettings
+        visible={settingsVisible}
+        onClose={() => setSettingsVisible(false)}
+        settings={settings}
+        onUpdate={updateSettings}
+      />
     </View>
   );
 }

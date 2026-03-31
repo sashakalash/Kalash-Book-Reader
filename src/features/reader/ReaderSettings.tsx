@@ -3,7 +3,6 @@ import { Modal, PanResponder, Pressable, Text, View } from 'react-native';
 import Slider from '@react-native-community/slider';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { useSettingsStore } from '@/stores/settingsStore';
 import type { ReaderSettings } from '@/types';
 
 // ---------------------------------------------------------------------------
@@ -47,42 +46,6 @@ function ThemeButton({
   );
 }
 
-// function FontFamilyButton({
-//   label,
-//   value,
-//   active,
-//   onPress,
-// }: {
-//   label: string;
-//   value: ReaderSettings['fontFamily'];
-//   active: boolean;
-//   onPress: (v: ReaderSettings['fontFamily']) => void;
-// }) {
-//   const fontFamilyMap: Record<ReaderSettings['fontFamily'], string | undefined> = {
-//     system: undefined,
-//     serif: 'Georgia',
-//     'sans-serif': 'Helvetica Neue',
-//   };
-//   return (
-//     <Pressable
-//       onPress={() => onPress(value)}
-//       accessibilityRole="button"
-//       accessibilityLabel={`${label} font`}
-//       accessibilityState={{ selected: active }}
-//       className={`flex-1 items-center rounded-xl border-2 py-3 ${
-//         active ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-white'
-//       }`}
-//     >
-//       <Text
-//         style={{ fontFamily: fontFamilyMap[value] }}
-//         className={`text-base ${active ? 'font-semibold text-blue-600' : 'text-gray-700'}`}
-//       >
-//         {label}
-//       </Text>
-//     </Pressable>
-//   );
-// }
-
 // ---------------------------------------------------------------------------
 // Main component
 // ---------------------------------------------------------------------------
@@ -90,12 +53,17 @@ function ThemeButton({
 interface ReaderSettingsProps {
   visible: boolean;
   onClose: () => void;
+  settings: ReaderSettings;
+  onUpdate: (patch: Partial<ReaderSettings>) => void;
 }
 
-/** Bottom sheet for reader preferences. Changes are applied immediately via settingsStore. */
-export function ReaderSettings({ visible, onClose }: ReaderSettingsProps) {
-  const { settings, update } = useSettingsStore();
-
+/** Bottom sheet for reader preferences. Changes are applied immediately via MMKV. */
+export function ReaderSettings({
+  visible,
+  onClose,
+  settings,
+  onUpdate: update,
+}: ReaderSettingsProps) {
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,

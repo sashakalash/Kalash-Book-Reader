@@ -10,13 +10,13 @@
 
 ### Рекомендация: **React Native + Expo**
 
-| Критерий | React Native | Flutter |
-|---|---|---|
-| EPUB рендеринг | `react-native-readium` — **нативный** (Readium Swift/Kotlin). Индустриальный стандарт, 100+ production apps | `flutter_epub_viewer` — WebView обёртка над epub.js. Или `vocsy_epub_viewer` — обёртка над FolioReader |
-| PDF рендеринг | `react-native-pdf` (1.8k stars) или `react-native-pdf-jsi` | `syncfusion_flutter_pdfviewer` (OOM issues с большими файлами) |
-| DOCX | Конвертация в EPUB (см. секцию ниже) | Аналогично |
-| Зрелость экосистемы ридеров | **Readium** — лучший в индустрии | Всё через WebView, нет нативного ридера |
-| Твой стек | React/TS — родной стек | Dart — новый язык |
+| Критерий                    | React Native                                                                                                | Flutter                                                                                                |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| EPUB рендеринг              | `react-native-readium` — **нативный** (Readium Swift/Kotlin). Индустриальный стандарт, 100+ production apps | `flutter_epub_viewer` — WebView обёртка над epub.js. Или `vocsy_epub_viewer` — обёртка над FolioReader |
+| PDF рендеринг               | `react-native-pdf` (1.8k stars) или `react-native-pdf-jsi`                                                  | `syncfusion_flutter_pdfviewer` (OOM issues с большими файлами)                                         |
+| DOCX                        | Конвертация в EPUB (см. секцию ниже)                                                                        | Аналогично                                                                                             |
+| Зрелость экосистемы ридеров | **Readium** — лучший в индустрии                                                                            | Всё через WebView, нет нативного ридера                                                                |
+| Твой стек                   | React/TS — родной стек                                                                                      | Dart — новый язык                                                                                      |
 
 **Ключевой фактор:** `react-native-readium` использует нативные движки Readium (Swift Toolkit для iOS, Kotlin Toolkit для Android) через Nitro Modules. Это не WebView-обёртка — это тот же движок, на котором работают Apple Books, Kobo и десятки коммерческих ридеров. Flutter-альтернативы — всё WebView-обёртки с потолком по производительности.
 
@@ -25,6 +25,7 @@
 ## 2. Рендеринг форматов
 
 ### EPUB — `react-native-readium`
+
 - 153 stars, последний коммит Jan 2025
 - Нативный рендеринг (не WebView)
 - EPUB 2 и EPUB 3
@@ -34,6 +35,7 @@
 - **Риск:** PDF пока на roadmap, не реализован
 
 ### PDF — `react-native-pdf` / `react-native-pdf-jsi`
+
 - `react-native-pdf`: 1.8k stars, проверенный
 - **Известные проблемы:** OOM crash на файлах 30-80MB, совместимость с RN 0.80 New Architecture и Android 15
 - `react-native-pdf-jsi`: JSI-based (быстрее), но менее зрелый
@@ -55,12 +57,12 @@
 
 ### Трёхслойная архитектура: File System + SQLite + MMKV
 
-| Данные | Хранилище | Почему |
-|---|---|---|
-| Файлы книг + обложки | **File System** (`expo-file-system`) | Стандарт для бинарных файлов |
-| Метаданные, категории, связи, заметки | **SQLite** (`expo-sqlite` + Drizzle ORM) | ACID, SQL запросы, JOIN для many-to-many, миграции |
-| Позиция чтения (hot path) | **MMKV** (primary) + **SQLite** (canonical) | mmap-запись за микросекунды, crash-safe |
-| Настройки (тема, шрифт) | **MMKV** (`react-native-mmkv` v4) | Простой K/V, синхронный, быстрый |
+| Данные                                | Хранилище                                   | Почему                                             |
+| ------------------------------------- | ------------------------------------------- | -------------------------------------------------- |
+| Файлы книг + обложки                  | **File System** (`expo-file-system`)        | Стандарт для бинарных файлов                       |
+| Метаданные, категории, связи, заметки | **SQLite** (`expo-sqlite` + Drizzle ORM)    | ACID, SQL запросы, JOIN для many-to-many, миграции |
+| Позиция чтения (hot path)             | **MMKV** (primary) + **SQLite** (canonical) | mmap-запись за микросекунды, crash-safe            |
+| Настройки (тема, шрифт)               | **MMKV** (`react-native-mmkv` v4)           | Простой K/V, синхронный, быстрый                   |
 
 ### Позиция чтения — критичная логика
 
@@ -82,12 +84,12 @@ MMKV использует mmap — ядро ОС сбрасывает стран
 
 ### Отвергнутые варианты
 
-| Хранилище | Причина отказа |
-|---|---|
-| **Realm** | Deprecated MongoDB, EOL 30 сентября 2025. Мертвый проект |
-| **Isar** | Автор бросил проект. Rust core делает community-поддержку сложной |
-| **Hive** | Не умеет реляционные запросы. Many-to-many (книга↔категория) потребует загрузки всего в память |
-| **WatermelonDB** | Жизнеспособен, но overkill для offline-only без sync |
+| Хранилище        | Причина отказа                                                                                 |
+| ---------------- | ---------------------------------------------------------------------------------------------- |
+| **Realm**        | Deprecated MongoDB, EOL 30 сентября 2025. Мертвый проект                                       |
+| **Isar**         | Автор бросил проект. Rust core делает community-поддержку сложной                              |
+| **Hive**         | Не умеет реляционные запросы. Many-to-many (книга↔категория) потребует загрузки всего в память |
+| **WatermelonDB** | Жизнеспособен, но overkill для offline-only без sync                                           |
 
 ### Схема БД (SQLite)
 
@@ -116,16 +118,19 @@ reading_positions (book_id, position_data, chapter_index, percentage, updated_at
 ## 5. Известные подводные камни
 
 ### EPUB
+
 - CSS-конфликты — publisher CSS vs user settings vs reader defaults (проблема #1)
 - WebView-ридеры рендерят всю главу перед пагинацией — нет точного "страница X из Y"
 - EPUB 3 рендерится хуже чем EPUB 2 (MathML/SVG)
 - RTL-поддержка слабая в большинстве open-source ридеров
 
 ### PDF
+
 - **Память** — файлы 30-80MB крашат приложения на Android
 - Митигация: виртуализированный рендеринг страниц, нативные движки (PDFKit/PdfRenderer)
 
 ### Reading Position (CFI)
+
 - DOM-инъекции ридера ломают CFI-разрешение
 - Разные XML-парсеры дают разный DOM для идентичного XML
 - Обновление книги инвалидирует все сохранённые CFI
@@ -136,10 +141,12 @@ reading_positions (book_id, position_data, chapter_index, percentage, updated_at
 ## 6. Файловый импорт и "Open With"
 
 ### File Picker
+
 - `expo-document-picker` — стандартный, работает из коробки
 - Фильтрация по MIME-типам: `application/epub+zip`, `application/pdf`, `application/vnd.openxmlformats-officedocument.wordprocessingml.document`
 
 ### Share / Open With
+
 - **iOS:** Регистрация UTI в `Info.plist` (`CFBundleDocumentTypes`)
 - **React Native:** `react-native-share-menu` или `react-native-receive-sharing-intent`
 - **Expo:** Поддержка через config plugins
@@ -149,32 +156,32 @@ reading_positions (book_id, position_data, chapter_index, percentage, updated_at
 
 ## 7. Итоговый стек
 
-| Слой | Технология |
-|---|---|
-| Framework | React Native + Expo (managed workflow) |
-| EPUB reader | `react-native-readium` |
-| PDF reader | `react-native-pdf` (с fallback на `react-native-pdf-jsi`) |
-| DOCX | Исключён из MVP (v2: server-side Pandoc → EPUB) |
-| Navigation | Expo Router |
-| State | Zustand |
-| DB | `expo-sqlite` + Drizzle ORM |
-| Fast K/V | `react-native-mmkv` v4 |
-| File system | `expo-file-system` |
-| File picker | `expo-document-picker` |
-| Share intent | `react-native-receive-sharing-intent` |
-| Styling | NativeWind (Tailwind for RN) |
+| Слой         | Технология                                                |
+| ------------ | --------------------------------------------------------- |
+| Framework    | React Native + Expo (managed workflow)                    |
+| EPUB reader  | `react-native-readium`                                    |
+| PDF reader   | `react-native-pdf` (с fallback на `react-native-pdf-jsi`) |
+| DOCX         | Исключён из MVP (v2: server-side Pandoc → EPUB)           |
+| Navigation   | Expo Router                                               |
+| State        | React hooks + MMKV / SQLite                               |
+| DB           | `expo-sqlite` + Drizzle ORM                               |
+| Fast K/V     | `react-native-mmkv` v4                                    |
+| File system  | `expo-file-system`                                        |
+| File picker  | `expo-document-picker`                                    |
+| Share intent | `react-native-receive-sharing-intent`                     |
+| Styling      | NativeWind (Tailwind for RN)                              |
 
 ---
 
 ## 8. Риски и митигации
 
-| Риск | Вероятность | Митигация |
-|---|---|---|
-| `react-native-readium` не покрывает PDF | Высокая | Отдельная библиотека для PDF — уже в плане |
-| OOM на больших PDF | Средняя | Виртуализация страниц, лимит размера файла с предупреждением |
-| DOCX в v2 | — | Убран из MVP. Server-side Pandoc в следующей версии |
-| `react-native-readium` недостаточно зрелый | Средняя | Fallback: `epubjs-react-native` (WebView, но проверенный, 243 stars) |
-| MMKV потеря данных | Низкая | mmap + dual-write в SQLite |
+| Риск                                       | Вероятность | Митигация                                                            |
+| ------------------------------------------ | ----------- | -------------------------------------------------------------------- |
+| `react-native-readium` не покрывает PDF    | Высокая     | Отдельная библиотека для PDF — уже в плане                           |
+| OOM на больших PDF                         | Средняя     | Виртуализация страниц, лимит размера файла с предупреждением         |
+| DOCX в v2                                  | —           | Убран из MVP. Server-side Pandoc в следующей версии                  |
+| `react-native-readium` недостаточно зрелый | Средняя     | Fallback: `epubjs-react-native` (WebView, но проверенный, 243 stars) |
+| MMKV потеря данных                         | Низкая      | mmap + dual-write в SQLite                                           |
 
 ---
 

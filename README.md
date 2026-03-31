@@ -67,7 +67,7 @@ This one was built for a specific reader — and shaped by real feedback from th
 | Framework         | Expo 55 (canary) + React Native 0.83                                 |
 | Navigation        | Expo Router (file-based)                                             |
 | Storage           | SQLite via `expo-sqlite` + Drizzle ORM                               |
-| State             | Zustand                                                              |
+| State             | React hooks + MMKV / SQLite                                          |
 | Local persistence | `react-native-mmkv` (reading position, settings)                     |
 | Styling           | NativeWind v4 (Tailwind for RN)                                      |
 | EPUB rendering    | `@epubjs-react-native/core`                                          |
@@ -88,7 +88,7 @@ src/
   components/         # Shared UI: StarRating, ReaderErrorBoundary
   hooks/              # Shared hooks
   services/           # File parsing, DB queries
-  stores/             # Zustand stores
+  hooks/              # Custom state hooks (useLibrary, useReaderSettings, …)
   types/              # Shared TypeScript types
 app/
   (tabs)/             # Tab navigator (library, categories)
