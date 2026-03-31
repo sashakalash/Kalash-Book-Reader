@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "KalashBook",
-    "slug": "kalash-book",
+    "slug": "kalash-bookreader",
     "scheme": "kalash-book",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -27,6 +27,18 @@
             "LSHandlerRank": "Alternate",
             "CFBundleTypeRole": "Viewer",
             "LSItemContentTypes": ["com.adobe.pdf"]
+          },
+          {
+            "CFBundleTypeName": "EPUB Document",
+            "LSHandlerRank": "Alternate",
+            "CFBundleTypeRole": "Viewer",
+            "LSItemContentTypes": ["org.idpf.epub-container"]
+          },
+          {
+            "CFBundleTypeName": "PDF Document",
+            "LSHandlerRank": "Alternate",
+            "CFBundleTypeRole": "Viewer",
+            "LSItemContentTypes": ["com.adobe.pdf"]
           }
         ],
         "UTImportedTypeDeclarations": [
@@ -38,10 +50,20 @@
               "public.mime-type": "application/epub+zip",
               "public.filename-extension": ["epub"]
             }
+          },
+          {
+            "UTTypeIdentifier": "org.idpf.epub-container",
+            "UTTypeDescription": "EPUB e-book",
+            "UTTypeConformsTo": ["public.data", "public.composite-content"],
+            "UTTypeTagSpecification": {
+              "public.mime-type": "application/epub+zip",
+              "public.filename-extension": ["epub"]
+            }
           }
-        ]
+        ],
+        "ITSAppUsesNonExemptEncryption": false
       },
-      "bundleIdentifier": "com.sashareddd.kalashbook"
+      "bundleIdentifier": "com.kalash-sash.kalashbook-app"
     },
     "android": {
       "adaptiveIcon": {
@@ -76,6 +98,13 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "plugins": ["expo-router", "expo-sqlite", "expo-document-picker"]
+    "plugins": ["expo-router", "expo-sqlite", "expo-document-picker", "expo-dev-client"],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "65cef5f8-565d-493c-a0ab-d09efe66cde2"
+      }
+    },
+    "owner": "sasha-kalash"
   }
 }
