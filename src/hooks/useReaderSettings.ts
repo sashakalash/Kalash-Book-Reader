@@ -1,4 +1,4 @@
-import { create } from 'zustand';
+import { useState } from 'react';
 
 import { getSettingsStorage } from '@/services/storage/mmkv';
 import type { ReaderSettings } from '@/types';
@@ -24,17 +24,17 @@ function loadSettings(): ReaderSettings {
   }
 }
 
-interface SettingsState {
-  settings: ReaderSettings;
-  update: (patch: Partial<ReaderSettings>) => void;
+/** Reader settings backed by MMKV. Call from the reader screen and pass down via props. */
+export function useReaderSettings() {
+  const [settings, setSettings] = useState(loadSettings);
+
+  const update = (patch: Partial<ReaderSettings>) => {
+    setSettings((prev) => {
+      const next = { ...prev, ...patch };
+      getSettingsStorage().set(SETTINGS_KEY, JSON.stringify(next));
+      return next;
+    });
+  };
+
+  return { settings, update } as const;
 }
-
-export const useSettingsStore = create<SettingsState>((set, get) => ({
-  settings: loadSettings(),
-
-  update: (patch) => {
-    const next = { ...get().settings, ...patch };
-    set({ settings: next });
-    getSettingsStorage().set(SETTINGS_KEY, JSON.stringify(next));
-  },
-}));
