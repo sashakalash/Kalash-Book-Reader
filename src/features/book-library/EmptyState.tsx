@@ -1,4 +1,5 @@
 import { Text, View, Pressable } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
 interface EmptyStateProps {
   onImport: () => void;
@@ -8,7 +9,7 @@ interface EmptyStateProps {
 export function EmptyState({ onImport }: EmptyStateProps) {
   return (
     <View className="flex-1 items-center justify-center px-8">
-      <Text className="text-5xl">📚</Text>
+      <Ionicons name="library-outline" size={64} color="#9ca3af" />
       <Text className="mt-4 text-xl font-bold text-gray-800">Your library is empty</Text>
       <Text className="mt-2 text-center text-sm text-gray-500">
         Import an EPUB or PDF to get started

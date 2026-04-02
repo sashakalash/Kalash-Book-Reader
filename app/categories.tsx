@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, FlatList, Pressable, Text, TextInput, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 
@@ -141,7 +142,7 @@ export default function CategoriesScreen() {
               accessibilityLabel={`Delete ${item.name}`}
               className="ml-3 p-2 active:opacity-50"
             >
-              <Text className="text-gray-400">🗑</Text>
+              <Ionicons name="trash-outline" size={18} color="#9ca3af" />
             </Pressable>
           </View>
         )}

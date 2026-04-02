@@ -1,4 +1,4 @@
-# kalash-book
+# Kalash BookReader
 
 > A minimal, opinionated mobile book reader built with Expo + React Native.
 > No cloud. No sign-up. Just your books.

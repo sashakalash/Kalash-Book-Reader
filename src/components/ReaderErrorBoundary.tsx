@@ -1,5 +1,6 @@
 import { Component } from 'react';
 import { Pressable, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import type { ReactNode } from 'react';
 
 interface Props {
@@ -30,7 +31,7 @@ export class ReaderErrorBoundary extends Component<Props, State> {
 
     return (
       <View className="flex-1 items-center justify-center bg-black px-8">
-        <Text className="text-4xl mb-4">📖</Text>
+        <Ionicons name="book-outline" size={48} color="#9ca3af" style={{ marginBottom: 16 }} />
         <Text className="text-white text-base font-semibold mb-2 text-center">
           Could not open this book
         </Text>

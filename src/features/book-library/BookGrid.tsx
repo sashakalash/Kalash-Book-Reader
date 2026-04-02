@@ -1,4 +1,5 @@
 import { FlatList, RefreshControl, Text, useWindowDimensions, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
 import type { Book } from '@/types';
 import { BookCard } from './BookCard';
@@ -55,7 +56,7 @@ export function BookGrid({
   if (books.length === 0 && isSearching) {
     return (
       <View className="flex-1 items-center justify-center px-8">
-        <Text className="text-4xl mb-3">🔍</Text>
+        <Ionicons name="search" size={48} color="#9ca3af" style={{ marginBottom: 12 }} />
         <Text className="text-base font-semibold text-gray-800">No books found</Text>
         <Text className="mt-1 text-sm text-center text-gray-500">
           Try a different title or author

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Image, Pressable, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
 import type { Book } from '@/types';
 
@@ -107,7 +108,7 @@ export function BookCard({
             className="absolute top-1.5 right-1.5 active:opacity-60"
           >
             <View className="bg-amber-400 rounded-full w-6 h-6 items-center justify-center">
-              <Text className="text-[12px]">📝</Text>
+              <Ionicons name="pencil" size={12} color="#fff" />
             </View>
           </Pressable>
         )}

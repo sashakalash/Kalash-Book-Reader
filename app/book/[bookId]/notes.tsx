@@ -9,6 +9,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
@@ -103,7 +104,7 @@ export default function NotesScreen() {
           contentContainerStyle={{ padding: 16, gap: 12 }}
           ListEmptyComponent={
             <View className="items-center py-12">
-              <Text className="text-2xl">📝</Text>
+              <Ionicons name="pencil-outline" size={32} color="#9ca3af" />
               <Text className="mt-2 text-sm text-gray-400">No notes yet. Add one below.</Text>
             </View>
           }

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View, Text } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as FileSystem from 'expo-file-system/legacy';
 
@@ -221,7 +222,12 @@ export default function ReaderScreen() {
   if (fileMissing) {
     return (
       <View className="flex-1 items-center justify-center bg-black px-8">
-        <Text className="text-4xl mb-4">🔍</Text>
+        <Ionicons
+          name="document-text-outline"
+          size={48}
+          color="#9ca3af"
+          style={{ marginBottom: 16 }}
+        />
         <Text className="text-white text-base font-semibold mb-2 text-center">File not found</Text>
         <Text className="text-gray-400 text-sm text-center mb-8">
           &ldquo;{book.title}&rdquo; was removed from device storage outside the app.

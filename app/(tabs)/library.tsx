@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import { Alert, Pressable, Text, TextInput, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -186,7 +187,7 @@ export default function LibraryScreen() {
               accessibilityLabel="Search"
               className="h-10 w-10 items-center justify-center rounded-full bg-gray-100 active:bg-gray-200"
             >
-              <Text className="text-base">🔍</Text>
+              <Ionicons name="search" size={18} color="#374151" />
             </Pressable>
             <Pressable
               onPress={() => setSortSheetVisible(true)}
@@ -202,7 +203,7 @@ export default function LibraryScreen() {
         {/* Search bar */}
         {searchVisible && (
           <View className="mx-5 mb-3 flex-row items-center rounded-xl bg-gray-100 px-3 py-2">
-            <Text className="mr-2 text-gray-400">🔍</Text>
+            <Ionicons name="search" size={16} color="#9ca3af" style={{ marginRight: 8 }} />
             <TextInput
               autoFocus
               placeholder="Search by title or author…"

@@ -1,9 +1,5 @@
 import { Tabs } from 'expo-router';
-import { Text } from 'react-native';
-
-function TabIcon({ emoji, focused }: { emoji: string; focused: boolean }) {
-  return <Text style={{ fontSize: 22, opacity: focused ? 1 : 0.5 }}>{emoji}</Text>;
-}
+import { Ionicons } from '@expo/vector-icons';
 
 /** Bottom tab navigator. */
 export default function TabLayout() {
@@ -13,14 +9,28 @@ export default function TabLayout() {
         name="library"
         options={{
           title: 'Library',
-          tabBarIcon: ({ focused }) => <TabIcon emoji="📚" focused={focused} />,
+          tabBarIcon: ({ focused, color, size }) => (
+            <Ionicons
+              name="library"
+              size={size}
+              color={color}
+              style={{ opacity: focused ? 1 : 0.5 }}
+            />
+          ),
         }}
       />
       <Tabs.Screen
         name="settings"
         options={{
           title: 'Settings',
-          tabBarIcon: ({ focused }) => <TabIcon emoji="⚙️" focused={focused} />,
+          tabBarIcon: ({ focused, color, size }) => (
+            <Ionicons
+              name="settings-sharp"
+              size={size}
+              color={color}
+              style={{ opacity: focused ? 1 : 0.5 }}
+            />
+          ),
         }}
       />
     </Tabs>

@@ -13,6 +13,7 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { getNotesForBook, createNote, updateNote, deleteNote } from '@/services/db/notes';
@@ -167,7 +168,12 @@ export function NotesModal({ bookId, bookTitle, onClose }: NotesModalProps) {
             ListEmptyComponent={
               editingId !== '__new__' ? (
                 <View className="items-center py-16">
-                  <Text className="text-3xl mb-2">📝</Text>
+                  <Ionicons
+                    name="pencil-outline"
+                    size={40}
+                    color="#9ca3af"
+                    style={{ marginBottom: 8 }}
+                  />
                   <Text className="text-gray-400 text-sm">No notes yet</Text>
                 </View>
               ) : null
