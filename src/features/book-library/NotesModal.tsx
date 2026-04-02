@@ -125,14 +125,20 @@ export function NotesModal({ bookId, bookTitle, onClose }: NotesModalProps) {
   };
 
   return (
-    <Modal visible={bookId !== null} animationType="slide" onRequestClose={onClose}>
+    <Modal visible={bookId !== null} animationType="slide" transparent onRequestClose={onClose}>
+      {/* Backdrop — top 10% */}
+      <Pressable className="h-[10%] bg-black/40" onPress={onClose} />
+
       <Animated.View
-        style={{ flex: 1, backgroundColor: '#fff', transform: [{ translateX }] }}
+        style={{
+          flex: 1,
+          backgroundColor: '#fff',
+          borderTopLeftRadius: 16,
+          borderTopRightRadius: 16,
+          transform: [{ translateX }],
+        }}
         {...panResponder.panHandlers}
       >
-        {/* Safe-area top spacer */}
-        <View style={{ height: insets.top, backgroundColor: '#fff' }} />
-
         {/* Header */}
         <View className="flex-row items-center justify-between px-5 py-3 border-b border-gray-100">
           <Text className="text-base font-bold text-gray-900 flex-1 mr-3" numberOfLines={1}>

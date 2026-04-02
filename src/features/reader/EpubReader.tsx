@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
-import { StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Linking, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Reader, useReader, ReaderProvider } from '@epubjs-react-native/core';
 import { useEpubFileSystem } from './useEpubFileSystem';
@@ -29,18 +29,18 @@ interface EpubReaderInnerProps {
   navigateRef?: React.MutableRefObject<((href: string) => void) | null>;
   /** Ref populated with a seek-to-percentage function. */
   seekRef?: React.MutableRefObject<((pct: number) => void) | null>;
+  /** Ref populated with goNext so the parent can implement tap-to-turn overlays. */
+  pageForwardRef?: React.MutableRefObject<(() => void) | null>;
+  /** Ref populated with goPrevious so the parent can implement tap-to-turn overlays. */
+  pageBackRef?: React.MutableRefObject<(() => void) | null>;
 }
 
 // ---------------------------------------------------------------------------
-// JS injected into the WebView to detect taps reliably.
-// Sends { type: 'tap' } via postMessage when a touch ends with minimal movement.
+// JS injected into the WebView to detect taps.
+// Only handles tap detection for showing/hiding controls.
+// Link navigation is handled natively by the library via onShouldStartLoadWithRequest.
 // ---------------------------------------------------------------------------
 
-// Injected into the WebView after epubjs renders.
-// epubjs renders each chapter inside an <iframe>, so we must attach listeners
-// both to the outer document AND to the iframe's contentDocument.
-// Inside the iframe, window.top.ReactNativeWebView is used because the bridge
-// is only injected into the top frame.
 const INJECT_TAP_DETECTOR = `
 (function() {
   var lastTap = 0;
@@ -56,10 +56,10 @@ const INJECT_TAP_DETECTOR = `
       var dy = Math.abs(e.changedTouches[0].clientY - sy);
       var dt = Date.now() - st;
       var now = Date.now();
-      // tap = small movement, short duration, not too soon after last tap
       if (dx < 10 && dy < 10 && dt < 300 && (now - lastTap) > 350) {
         lastTap = now;
-        postFn(JSON.stringify({ type: 'tap' }));
+        var docWidth = doc.documentElement.clientWidth || window.innerWidth || 1;
+        postFn(JSON.stringify({ type: 'tap', x: sx / docWidth }));
       }
     }, { passive: true });
   }
@@ -68,21 +68,21 @@ const INJECT_TAP_DETECTOR = `
     var tries = 0;
     var interval = setInterval(function() {
       tries++;
-      var cd = iframe.contentDocument;
-      if (cd && cd.readyState === 'complete' && cd.body) {
-        clearInterval(interval);
-        makeTapListener(cd, function(msg) {
-          window.ReactNativeWebView.postMessage(msg);
-        });
-      }
+      try {
+        var cd = iframe.contentDocument;
+        if (cd && cd.readyState === 'complete' && cd.body) {
+          clearInterval(interval);
+          makeTapListener(cd, function(msg) {
+            window.ReactNativeWebView.postMessage(msg);
+          });
+        }
+      } catch(e) { clearInterval(interval); }
       if (tries > 50) clearInterval(interval);
     }, 100);
   }
 
-  // Attach to all current iframes
   document.querySelectorAll('iframe').forEach(attachToIframe);
 
-  // Watch for new iframes (epubjs creates them per chapter)
   var observer = new MutationObserver(function(mutations) {
     mutations.forEach(function(m) {
       m.addedNodes.forEach(function(n) {
@@ -108,21 +108,37 @@ function EpubReaderInner({
   onSingleTap,
   navigateRef,
   seekRef,
+  pageForwardRef,
+  pageBackRef,
 }: EpubReaderInnerProps) {
-  const { injectJavascript } = useReader();
+  const { goToLocation, injectJavascript } = useReader();
   const { initialPosition, savePosition } = useReadingPosition(bookId);
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const didRestore = useRef(false);
   const locationsReady = useRef(false);
   const webViewReady = useRef(false);
+  const currentCfiRef = useRef<string | null>(initialPosition?.cfi ?? null);
+  const prevFlowRef = useRef(settings.flow);
   const pendingScript = useRef<string | null>(null);
   const injectRef = useRef(injectJavascript);
   injectRef.current = injectJavascript;
+  const goToLocationRef = useRef(goToLocation);
+  goToLocationRef.current = goToLocation;
   const onSingleTapRef = useRef(onSingleTap);
   onSingleTapRef.current = onSingleTap;
   const onProgressChangeRef = useRef(onProgressChange);
   onProgressChangeRef.current = onProgressChange;
+  const settingsFlowRef = useRef(settings.flow);
+  settingsFlowRef.current = settings.flow;
+
+  // Reset WebView/location state when flow changes (Reader remounts via key)
+  if (prevFlowRef.current !== settings.flow) {
+    prevFlowRef.current = settings.flow;
+    locationsReady.current = false;
+    didRestore.current = false;
+    webViewReady.current = false;
+  }
 
   /** Inject JS into WebView, queuing if it's not ready yet. */
   const safeInject = useCallback((script: string) => {
@@ -133,11 +149,27 @@ function EpubReaderInner({
     }
   }, []);
 
-  // Expose navigate + seek refs
+  // Expose navigate + seek + page-turn refs
   useEffect(() => {
     if (navigateRef) {
       navigateRef.current = (href: string) => {
-        safeInject(`rendition.display(${JSON.stringify(href)}); true;`);
+        const escaped = href.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+        // Resolve TOC href through the spine (tries multiple path variations)
+        // then display. Direct rendition.display(href) often silently fails
+        // because TOC hrefs don't match the spine's internal paths.
+        injectRef.current(`
+          (function(){
+            try {
+              var h = '${escaped}';
+              var noHash = h.split('#')[0];
+              var s = book.spine.get(noHash)
+                   || book.spine.get(noHash.split('/').pop())
+                   || book.spine.get(noHash.split('/').slice(1).join('/'));
+              if (s) { rendition.display(s.href); }
+              else   { rendition.display(h); }
+            } catch(e) { rendition.display('${escaped}'); }
+          })(); true;
+        `);
       };
     }
     if (seekRef) {
@@ -147,7 +179,15 @@ function EpubReaderInner({
         );
       };
     }
-  }, [navigateRef, seekRef, safeInject]);
+    if (pageForwardRef) {
+      // Inject rendition.next() directly — same mechanism as all other injections,
+      // bypasses the library's context chain which can silently no-op.
+      pageForwardRef.current = () => injectRef.current('rendition.next(); true;');
+    }
+    if (pageBackRef) {
+      pageBackRef.current = () => injectRef.current('rendition.prev(); true;');
+    }
+  }, [navigateRef, seekRef, pageForwardRef, pageBackRef, safeInject]);
 
   const fontFamilyMap: Record<ReaderSettings['fontFamily'], string> = {
     system: '-apple-system, BlinkMacSystemFont, sans-serif',
@@ -167,8 +207,6 @@ function EpubReaderInner({
     sepia: '#3b2d1e',
   };
 
-  const isScrolled = settings.flow === 'scrolled-doc';
-
   const theme = useMemo(
     () => ({
       body: {
@@ -179,11 +217,11 @@ function EpubReaderInner({
         'line-height': String(settings.lineSpacing),
         margin: '0',
         padding: `8px ${settings.marginHorizontal}px 8px`,
-        // In paginated mode epubjs manages column width; in scroll mode let
-        // content fill the full viewport — padding handles horizontal spacing.
-        ...(isScrolled
-          ? { width: '100%', 'max-width': '100%' }
-          : { width: '90%', 'max-width': '90%', margin: '0 auto' }),
+        // Always 100% width — padding provides horizontal margins.
+        // Setting width < 100% in paginated mode breaks epubjs column-width
+        // calculation and prevents rendition.next() from navigating.
+        width: '100%',
+        'max-width': '100%',
         'overflow-x': 'hidden',
         'box-sizing': 'border-box',
       },
@@ -195,24 +233,89 @@ function EpubReaderInner({
       settings.fontFamily,
       settings.lineSpacing,
       settings.marginHorizontal,
-      isScrolled,
     ],
   );
 
   const handleReady = useCallback(() => {
     webViewReady.current = true;
-    // Generate locations so progress % is accurate
-    injectRef.current(
-      'book.locations.generate(1024).then(function(){' +
-        "  window.ReactNativeWebView.postMessage(JSON.stringify({type:'locationsReady'}));" +
-        '}); true;',
-    );
+
+    // Fix scroll mode: the template sets
+    //   #viewer { overflow: hidden !important; display: flex; align-items: center }
+    // which clips scrollable content and centers small covers.
+    // Keep changes minimal — epubjs manages iframe/section sizes itself,
+    // so only fix the outer viewer container and inject image CSS into content.
+    if (settings.flow === 'scrolled-doc') {
+      injectRef.current(`
+        (function() {
+          var s = document.createElement('style');
+          s.textContent = '#viewer { overflow-y: auto !important; display: block !important; -webkit-overflow-scrolling: touch !important; }';
+          document.head.appendChild(s);
+
+          // Make cover images responsive inside each chapter iframe.
+          function applyImageFix(contents) {
+            if (!contents || !contents.document) return;
+            var style = contents.document.createElement('style');
+            // width: 100% forces small cover images to fill viewport width
+            style.textContent = 'img, svg { width: 100% !important; max-width: 100% !important; height: auto !important; }';
+            contents.document.head.appendChild(style);
+          }
+          try {
+            rendition.hooks.content.register(function(c) { applyImageFix(c); });
+            rendition.getContents().forEach(applyImageFix);
+          } catch(e) {}
+        })(); true;
+      `);
+    }
+
+    // Regenerate locations with fine granularity (150 chars) for accurate progress.
+    // The library template generates with 1600 chars which is way too coarse.
+    // We wait for the template's initial generate to finish (via book.ready),
+    // then overwrite with our finer granularity.
+    injectRef.current(`
+      book.ready.then(function() {
+        return book.locations.generate(150);
+      }).then(function() {
+        window.ReactNativeWebView.postMessage(JSON.stringify({type:'locationsReady'}));
+      });
+      true;
+    `);
+
+    // Set up link click interception via epubjs content hooks.
+    injectRef.current(`
+      (function() {
+        var post = window.ReactNativeWebView.postMessage.bind(window.ReactNativeWebView);
+        function interceptLinks(doc) {
+          if (!doc || doc._rnLinks) return;
+          doc._rnLinks = true;
+          doc.addEventListener('click', function(e) {
+            var el = e.target;
+            while (el && el.tagName !== 'A') el = el.parentElement;
+            if (!el) return;
+            var href = el.getAttribute('href');
+            if (!href) return;
+            e.preventDefault();
+            e.stopPropagation();
+            post(JSON.stringify({ type: 'link', href: href }));
+          }, true);
+        }
+        try {
+          rendition.hooks.content.register(function(contents) {
+            interceptLinks(contents.document);
+          });
+          rendition.getContents().forEach(function(c) {
+            interceptLinks(c.document);
+          });
+        } catch(e) {}
+      })();
+      true;
+    `);
+
     // Flush any navigation queued before WebView was ready
     if (pendingScript.current) {
       injectRef.current(pendingScript.current);
       pendingScript.current = null;
     }
-  }, []);
+  }, [settings.flow]);
 
   const handleNavigationLoaded = useCallback(
     ({ toc }: { toc: EpubTocItem[] }) => {
@@ -227,14 +330,17 @@ function EpubReaderInner({
       currentLocation: { start: { cfi: string; displayed: { page: number } } },
       progress: number,
     ) => {
-      // Ignore progress events until book.locations.generate() has completed
+      // Ignore progress events until our fine-grained locations are ready
       if (!locationsReady.current) return;
-      // epubjs-react-native passes progress as 0–100, normalize to 0–1
-      const raw = progress ?? 0;
-      const pct = Math.min(1, Math.max(0, raw > 1 ? raw / 100 : raw));
+
+      const cfi = currentLocation?.start?.cfi;
+      // Template always sends Math.floor(percent * 100) i.e. integer 0–100.
+      const pct = Math.min(1, Math.max(0, (progress ?? 0) / 100));
+
+      if (cfi) currentCfiRef.current = cfi;
       onProgressChangeRef.current?.(pct);
       savePosition({
-        cfi: currentLocation?.start?.cfi ?? null,
+        cfi: cfi ?? null,
         chapterIndex: currentLocation?.start?.displayed?.page ?? null,
         percentage: pct,
         textAnchor: null,
@@ -243,21 +349,42 @@ function EpubReaderInner({
     [savePosition],
   );
 
-  const handleWebViewMessage = useCallback((event: { type?: string }) => {
-    if (event?.type === 'tap') {
-      onSingleTapRef.current?.();
-      return;
-    }
-    if (event?.type === 'locationsReady') {
-      locationsReady.current = true;
-      // Restore position now that locations are available
-      if (!didRestore.current && initialPosition?.cfi) {
-        injectRef.current(`rendition.display(${JSON.stringify(initialPosition.cfi)}); true;`);
-        didRestore.current = true;
+  const handleWebViewMessage = useCallback(
+    (event: { type?: string; href?: string; x?: number }) => {
+      if (event?.type === 'tap') {
+        if (settingsFlowRef.current === 'paginated' && event.x !== undefined) {
+          if (event.x < 0.3) {
+            safeInject('rendition.prev(); true;');
+          } else if (event.x > 0.7) {
+            safeInject('rendition.next(); true;');
+          } else {
+            onSingleTapRef.current?.();
+          }
+          return;
+        }
+        onSingleTapRef.current?.();
+        return;
       }
-    }
+      if (event?.type === 'link' && event.href) {
+        const href = event.href;
+        if (/^https?:\/\//.test(href) || href.startsWith('mailto:') || href.startsWith('tel:')) {
+          Linking.openURL(href);
+        } else {
+          goToLocationRef.current(href);
+        }
+        return;
+      }
+      if (event?.type === 'locationsReady') {
+        locationsReady.current = true;
+        if (!didRestore.current && initialPosition?.cfi) {
+          goToLocationRef.current(initialPosition.cfi);
+          didRestore.current = true;
+        }
+      }
+    },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    [],
+  );
 
   const readerHeight = height - insets.top - insets.bottom;
 
@@ -272,12 +399,14 @@ function EpubReaderInner({
         height={readerHeight}
         fileSystem={useEpubFileSystem}
         defaultTheme={theme}
-        initialLocation={initialPosition?.cfi ?? undefined}
+        initialLocation={currentCfiRef.current ?? initialPosition?.cfi ?? undefined}
         flow={settings.flow}
+        manager={settings.flow === 'scrolled-doc' ? 'continuous' : 'default'}
         enableSwipe={settings.flow === 'paginated'}
         onReady={handleReady}
         onNavigationLoaded={handleNavigationLoaded}
         onLocationChange={handleLocationChange}
+        onPressExternalLink={(url) => Linking.openURL(url)}
         injectedJavascript={INJECT_TAP_DETECTOR}
         onWebViewMessage={handleWebViewMessage}
         renderLoadingFileComponent={() => null}
@@ -302,6 +431,8 @@ interface EpubReaderProps {
   onSingleTap?: () => void;
   navigateRef?: React.MutableRefObject<((href: string) => void) | null>;
   seekRef?: React.MutableRefObject<((pct: number) => void) | null>;
+  pageForwardRef?: React.MutableRefObject<(() => void) | null>;
+  pageBackRef?: React.MutableRefObject<(() => void) | null>;
 }
 
 /** EPUB reader — WebView-based via epubjs-react-native. */

@@ -142,8 +142,8 @@ export function ReaderSettings({
           <Text className="text-sm text-gray-400">A</Text>
           <Slider
             style={{ flex: 1, height: 32 }}
-            minimumValue={12}
-            maximumValue={24}
+            minimumValue={24}
+            maximumValue={36}
             step={1}
             value={settings.fontSize}
             onValueChange={(v) => update({ fontSize: v })}

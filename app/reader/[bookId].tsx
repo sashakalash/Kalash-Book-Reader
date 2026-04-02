@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, View, Text } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, View, Text } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as FileSystem from 'expo-file-system/legacy';
 
 import { getBookById, updateBook } from '@/services/db/books';
+import { loadPosition } from '@/services/db/positions';
 import { EpubReader, type EpubTocItem } from '@/features/reader/EpubReader';
 import { PdfReader } from '@/features/reader/PdfReader';
 import { ReaderControls } from '@/features/reader/ReaderControls';
@@ -28,12 +29,16 @@ function EpubContent({
   const { settings, update: updateSettings } = useReaderSettings();
   const navigateRef = useRef<((href: string) => void) | null>(null);
   const seekRef = useRef<((pct: number) => void) | null>(null);
+  const pageForwardRef = useRef<(() => void) | null>(null);
+  const pageBackRef = useRef<(() => void) | null>(null);
 
   const [controlsVisible, setControlsVisible] = useState(false);
   const [tocVisible, setTocVisible] = useState(false);
   const [settingsVisible, setSettingsVisible] = useState(false);
   const [toc, setToc] = useState<EpubTocItem[]>([]);
-  const [progress, setProgress] = useState(0);
+  const [progress, setProgress] = useState(() => loadPosition(bookId)?.percentage ?? 0);
+
+  const showTapZones = settings.flow === 'paginated' && !controlsVisible;
 
   return (
     <View className="flex-1 bg-white">
@@ -46,7 +51,33 @@ function EpubContent({
         onSingleTap={() => setControlsVisible((v) => !v)}
         navigateRef={navigateRef}
         seekRef={seekRef}
+        pageForwardRef={pageForwardRef}
+        pageBackRef={pageBackRef}
       />
+
+      {/*
+        Tap-to-turn page zones for paginated mode.
+        Rendered as siblings of EpubReader (not inside it) so they never occlude
+        the controls UI. Hidden when controls are visible so burger/gear are tappable.
+        Library uses Gesture.Fling() which requires a fast sharp swipe — these
+        Pressables provide reliable tap-to-turn for normal casual taps.
+      */}
+      {showTapZones && (
+        <>
+          <Pressable
+            style={readerStyles.tapZoneLeft}
+            onPress={() => pageBackRef.current?.()}
+            accessibilityRole="button"
+            accessibilityLabel="Previous page"
+          />
+          <Pressable
+            style={readerStyles.tapZoneRight}
+            onPress={() => pageForwardRef.current?.()}
+            accessibilityRole="button"
+            accessibilityLabel="Next page"
+          />
+        </>
+      )}
 
       <ReaderControls
         title={title}
@@ -90,7 +121,7 @@ function PdfContent({
   const { settings, update: updateSettings } = useReaderSettings();
   const [controlsVisible, setControlsVisible] = useState(false);
   const [settingsVisible, setSettingsVisible] = useState(false);
-  const [progress, setProgress] = useState(0);
+  const [progress, setProgress] = useState(() => loadPosition(bookId)?.percentage ?? 0);
   const [totalPages, setTotalPages] = useState(0);
   const pdfSeekRef = useRef<((page: number) => void) | null>(null);
 
@@ -102,7 +133,7 @@ function PdfContent({
         flow={settings.flow}
         onPageCountReady={(total) => setTotalPages(total)}
         onPageChange={(page, total) => {
-          setProgress(total > 0 ? (page - 1) / total : 0);
+          setProgress(total > 0 ? page / total : 0);
         }}
         onSingleTap={() => setControlsVisible((v) => !v)}
         seekRef={pdfSeekRef}
@@ -221,3 +252,27 @@ export default function ReaderScreen() {
     </ReaderErrorBoundary>
   );
 }
+
+// ---------------------------------------------------------------------------
+// Styles
+// ---------------------------------------------------------------------------
+
+const readerStyles = StyleSheet.create({
+  // Transparent tap zones for paginated EPUB — left 25% = prev, right 25% = next.
+  // Rendered as siblings of EpubReader so they never block the controls UI.
+  // Conditionally shown only when controls are hidden.
+  tapZoneLeft: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 0,
+    width: '25%',
+  },
+  tapZoneRight: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    right: 0,
+    width: '25%',
+  },
+});

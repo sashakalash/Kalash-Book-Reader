@@ -287,7 +287,10 @@ export default function LibraryScreen() {
         <NotesModal
           bookId={notesBook?.id ?? null}
           bookTitle={notesBook?.title ?? ''}
-          onClose={() => setNotesBook(null)}
+          onClose={() => {
+            setNotesBook(null);
+            refresh();
+          }}
         />
 
         <CategoriesModal

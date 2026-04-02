@@ -10,13 +10,12 @@ import {
 } from '@/services/db/positions';
 import type { ReadingPosition } from '@/types';
 
-const DEBOUNCE_MS = 2000;
 const PERIODIC_FLUSH_MS = 30_000;
 
 /**
  * Manages reading position persistence for a single book.
  *
- * - Writes to MMKV on every page change (debounced, 2 s).
+ * - Writes to MMKV on every page change (immediate, < 1 ms).
  * - Flushes to SQLite when app goes to background.
  * - Flushes to SQLite every 30 s (periodic sync).
  *
@@ -26,7 +25,6 @@ export function useReadingPosition(bookId: string): {
   initialPosition: ReadingPosition | null;
   savePosition: (update: PositionUpdate) => void;
 } {
-  const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const periodicTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Load initial position once
@@ -35,14 +33,13 @@ export function useReadingPosition(bookId: string): {
   // Track latest update so unmount can flush it even if debounce hasn't fired
   const latestUpdate = useRef<PositionUpdate | null>(null);
 
-  // Debounced save to MMKV
+  // Save to MMKV immediately — writes are < 1 ms (memory-mapped).
+  // No debounce so the library screen always reads fresh data when it
+  // focuses before the reader unmounts.
   const savePosition = useCallback(
     (update: PositionUpdate) => {
       latestUpdate.current = update;
-      if (debounceTimer.current) clearTimeout(debounceTimer.current);
-      debounceTimer.current = setTimeout(() => {
-        savePositionToMmkv(bookId, update);
-      }, DEBOUNCE_MS);
+      savePositionToMmkv(bookId, update);
     },
     [bookId],
   );
@@ -51,10 +48,6 @@ export function useReadingPosition(bookId: string): {
   useEffect(() => {
     const handleAppState = (state: AppStateStatus) => {
       if (state === 'background' || state === 'inactive') {
-        if (debounceTimer.current) {
-          clearTimeout(debounceTimer.current);
-          debounceTimer.current = null;
-        }
         flushBookPositionOnBackground(bookId);
       }
     };
@@ -70,7 +63,6 @@ export function useReadingPosition(bookId: string): {
 
     return () => {
       if (periodicTimer.current) clearInterval(periodicTimer.current);
-      if (debounceTimer.current) clearTimeout(debounceTimer.current);
       // Flush latest position directly to both MMKV and SQLite on unmount
       // so the library screen shows up-to-date progress immediately.
       if (latestUpdate.current) {

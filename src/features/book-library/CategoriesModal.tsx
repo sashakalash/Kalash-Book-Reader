@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, FlatList, Modal, Pressable, Text, TextInput, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
   getAllCategories,
@@ -259,12 +259,13 @@ export function CategoriesModal({
   onClose,
   onCategoriesChanged,
 }: CategoriesModalProps) {
+  const insets = useSafeAreaInsets();
   const isAssign = bookId !== null;
   const title = isAssign ? `Shelves · ${bookTitle ?? ''}` : 'Manage shelves';
 
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
-      <SafeAreaView className="flex-1 bg-white">
+      <View className="flex-1 bg-white" style={{ paddingTop: insets.top }}>
         {/* Header */}
         <View className="flex-row items-center justify-between px-5 py-3 border-b border-gray-100">
           <Text className="text-base font-bold text-gray-900 flex-1 mr-3" numberOfLines={1}>
@@ -285,7 +286,7 @@ export function CategoriesModal({
         ) : (
           <ManageMode />
         )}
-      </SafeAreaView>
+      </View>
     </Modal>
   );
 }

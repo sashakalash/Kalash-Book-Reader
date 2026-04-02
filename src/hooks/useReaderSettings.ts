@@ -7,7 +7,7 @@ const SETTINGS_KEY = 'reader-settings';
 
 const DEFAULT_SETTINGS: ReaderSettings = {
   theme: 'day',
-  fontSize: 16,
+  fontSize: 24,
   fontFamily: 'system',
   lineSpacing: 1.5,
   marginHorizontal: 16,
